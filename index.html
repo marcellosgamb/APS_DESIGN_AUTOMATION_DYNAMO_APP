@@ -205,31 +205,16 @@
 
                     <div class="card mb-2">
                         <div class="card-body">
-                            <h6>4. Convert to JSON</h6>
-                            <p class="small text-muted mb-2">Converts your Dynamo script to JSON format required by DA.</p>
-                            <div class="row">
-                                <div class="col-8">
-                                    <button id="btnConvertJson" class="btn btn-primary w-100">Convert Dynamo to JSON</button>
-                                </div>
-                                <div class="col-4">
-                                    <button onclick="viewSourceCode('2.3_convert_dynamo_to_json.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
-                                </div>
+                            <h6>4. JSON File (run.json)</h6>
+                            <p class="small text-muted mb-2">Convert your .dyn file to JSON format (required by Design Automation), then upload it.</p>
+                            <div class="mb-2">
+                                <textarea class="form-control" id="jsonContent" rows="4" placeholder="JSON content will appear here after conversion..." readonly></textarea>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="card mb-2">
-                        <div class="card-body">
-                            <h6>5. Upload JSON</h6>
-                            <p class="small text-muted mb-2">Uploads the converted JSON to cloud storage.</p>
-                            <div class="row">
-                                <div class="col-8">
-                                    <button id="btnUploadJson" class="btn btn-primary w-100">Upload JSON to Bucket</button>
-                                </div>
-                                <div class="col-4">
-                                    <button onclick="viewSourceCode('2.4_upload_json_file.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
-                                </div>
+                            <div class="btn-group w-100 mb-2">
+                                <button type="button" class="btn btn-warning btn-sm" id="btnConvertDynToJson">Convert Dynamo File (Step 3) to JSON</button>
+                                <button type="button" class="btn btn-info btn-sm" id="btnUploadJson" disabled>Upload JSON to Bucket</button>
                             </div>
+                            <small class="text-info mb-2 d-block"><strong>🔄 Process:</strong> First convert, then upload the JSON version</small>
                         </div>
                     </div>
 
@@ -525,7 +510,7 @@
         document.getElementById('btnSetNickname').addEventListener('click', () => makeApiCall('/api/aps/nickname', 'POST'));
         document.getElementById('btnCreateActivity').addEventListener('click', () => makeApiCall('/api/aps/activity', 'POST'));
         document.getElementById('btnCreateBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'POST'));
-        document.getElementById('btnConvertJson').addEventListener('click', () => {
+        document.getElementById('btnConvertDynToJson').addEventListener('click', () => {
             const fileInput = document.getElementById('dynFile');
             if (!fileInput.files[0]) {
                 appendToLog('❌ Please select a Dynamo (.dyn) file first');
