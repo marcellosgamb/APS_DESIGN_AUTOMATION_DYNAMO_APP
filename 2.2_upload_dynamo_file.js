@@ -52,7 +52,15 @@ async function createTokenHeader() {
 
 // MAIN ROUTE HANDLER - Export this for use in server.js
 const uploadDynamoFileHandler = async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     console.log('Starting operation: Upload Dynamo File');
+    
+    if (io && socketId) {
+        io.to(socketId).emit('status', { message: '--- Step: UPLOAD DYNAMO FILE ---' });
+        io.to(socketId).emit('status', { message: 'Starting upload of Dynamo file...' });
+    }
     
     try {
         // Check if file was uploaded
@@ -70,7 +78,13 @@ const uploadDynamoFileHandler = async (req, res) => {
         
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 1: Getting authentication token...' });
+        }
         const tokenHeader = await createTokenHeader();
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Authentication token obtained' });
+        }
         
         // Step 2: Read the uploaded file
         console.log('Step 2: Reading uploaded file');
@@ -79,6 +93,9 @@ const uploadDynamoFileHandler = async (req, res) => {
         // Step 3: Upload to OSS bucket using signed URL (modern approach)
         const fileName = 'run.dyn'; // Design Automation expects this name
         console.log(`Step 3: Getting signed upload URL for: ${fileName}`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Step 3: Uploading ${fileName} to bucket '${APS_BUCKET_NAME}'...` });
+        }
         
         // Step 3a: Get signed upload URL
         const signedUrlResponse = await axios.get(
@@ -110,6 +127,10 @@ const uploadDynamoFileHandler = async (req, res) => {
         fs.unlinkSync(req.file.path);
         
         console.log('Operation completed successfully');
+        
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Dynamo file uploaded successfully!' });
+        }
         
         // Step 5: Send success response
         res.status(200).json({ 

@@ -74,16 +74,28 @@ async function checkFileExists(headers, bucketName, objectName) {
 
 // MAIN ROUTE HANDLER - Export this for use in server.js WITH SOCKET.IO SUPPORT
 const runWorkitemHandler = async (req, res) => {
-    const { socketId } = req.body;
+    const { socketId, rvtFileName, hasPackages } = req.body;
     const io = req.app.get('io');
     
     console.log('Starting operation: Run Workitem');
     
-    // Send initial status to browser log
-    if (io && socketId) {
-        io.to(socketId).emit('status', { message: '--- Step: CREATE WORKITEM ---' });
-        io.to(socketId).emit('status', { message: 'Starting workitem creation and execution...' });
+    // Validate required parameters (matching reference implementation)
+    if (!rvtFileName) {
+        return res.status(400).json({ error: 'rvtFileName is required' });
     }
+    
+    // Validate that the RVT file is named run.rvt (matching reference implementation)
+    if (rvtFileName !== 'run.rvt') {
+        return res.status(400).json({ 
+            error: 'RVT file must be named "run.rvt". Please rename your file and upload again.' 
+        });
+    }
+    
+    // Send initial status to browser log
+            if (io && socketId) {
+            io.to(socketId).emit('status', { message: '--- Step: CREATE WORKITEM ---' });
+            io.to(socketId).emit('status', { message: `Creating workitem for file '${rvtFileName}'...` });
+        }
     
     // DEBUG: Log environment variables
     console.log('DEBUG Environment Variables:');
@@ -135,7 +147,7 @@ const runWorkitemHandler = async (req, res) => {
             activityId: activityId,
             arguments: {
                 rvtFile: {
-                    url: `urn:adsk.objects:os.object:${APS_BUCKET_NAME}/run.rvt`,
+                    url: `urn:adsk.objects:os.object:${APS_BUCKET_NAME}/${rvtFileName}`,
                     verb: "get",
                     headers: {
                         Authorization: headers.Authorization

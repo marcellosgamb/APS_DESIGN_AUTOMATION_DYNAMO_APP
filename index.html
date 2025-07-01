@@ -537,35 +537,48 @@
                 return;
             }
             
-            const jsonContent = jsonTextarea.value.trim();
-            const requestBody = {
-                jsonContent: jsonContent,
-                socketId: socketId
-            };
+            // Create a Blob from the JSON content
+            const jsonBlob = new Blob([jsonTextarea.value.trim()], { type: 'application/json' });
+            const jsonFile = new File([jsonBlob], 'run.json', { type: 'application/json' });
             
-            fetch('/api/aps/upload/json-content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    appendToLog(`✅ ${data.message}`);
-                } else if (data.error) {
-                    appendToLog(`❌ ${data.error}`);
-                }
-            })
-            .catch(error => {
-                appendToLog(`❌ Network error: ${error.message}`);
-            });
+            const formData = new FormData();
+            formData.append('file', jsonFile);
+            formData.append('fileType', 'json');
+            formData.append('socketId', socketId);
+            
+            makeApiCall('/api/aps/upload/single', 'POST', formData);
         });
         document.getElementById('btnRunWorkitem').addEventListener('click', () => {
             if (!socketId) {
                 appendToLog('❌ Not connected to server. Please refresh the page.');
                 return;
             }
-            makeApiCallWithSocket('/api/aps/workitem', 'POST', null);
+            
+            // Pass required parameters that the backend expects
+            const requestBody = {
+                socketId: socketId,
+                rvtFileName: 'run.rvt',  // This matches the reference implementation
+                hasPackages: false      // Optional parameter
+            };
+            
+            fetch('/api/aps/workitem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    appendToLog(`❌ ${data.error}`);
+                    if (data.details) {
+                        appendToLog(`   Details: ${JSON.stringify(data.details, null, 2)}`);
+                    }
+                }
+                // Success messages will come through Socket.IO
+            })
+            .catch(error => {
+                appendToLog(`❌ Network error: ${error.message}`);
+            });
         });
         document.getElementById('btnDownloadJson').addEventListener('click', () => {
             const serverUrl = getServerUrl();

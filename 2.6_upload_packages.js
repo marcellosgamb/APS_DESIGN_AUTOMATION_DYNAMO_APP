@@ -54,7 +54,15 @@ async function createTokenHeader() {
 
 // MAIN ROUTE HANDLER - Export this for use in server.js
 const uploadPackagesHandler = async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     console.log('Starting operation: Upload Dynamo Packages');
+    
+    if (io && socketId) {
+        io.to(socketId).emit('status', { message: '--- Step: UPLOAD PACKAGES ---' });
+        io.to(socketId).emit('status', { message: 'Starting upload of Dynamo packages...' });
+    }
     
     try {
         // Check if file was uploaded
@@ -72,7 +80,13 @@ const uploadPackagesHandler = async (req, res) => {
         
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 1: Getting authentication token...' });
+        }
         const tokenHeader = await createTokenHeader();
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Authentication token obtained' });
+        }
         
         // Step 2: Read the uploaded file
         console.log('Step 2: Reading uploaded file');
@@ -80,6 +94,9 @@ const uploadPackagesHandler = async (req, res) => {
         
         // Step 3: Get signed upload URL for packages.zip
         console.log('Step 3: Getting signed upload URL for: packages.zip');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Step 3: Uploading packages.zip to bucket '${APS_BUCKET_NAME}'...` });
+        }
         const signedUrlResponse = await axios.get(
             `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/packages.zip/signeds3upload`,
             { headers: { 'Authorization': tokenHeader.Authorization } }
@@ -110,6 +127,10 @@ const uploadPackagesHandler = async (req, res) => {
         fs.unlinkSync(req.file.path);
         
         console.log('Operation completed successfully');
+        
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Dynamo packages uploaded successfully!' });
+        }
         
         // Step 5: Send success response
         res.status(200).json({ 

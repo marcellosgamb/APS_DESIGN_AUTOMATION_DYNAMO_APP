@@ -2,6 +2,60 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs-extra');
+const axios = require('axios');
+
+// Token management functions
+async function getAutodeskToken() {
+    const tokenRequestBody = new URLSearchParams({
+        'grant_type': 'client_credentials',
+        'scope': 'bucket:create bucket:read bucket:delete data:read data:write code:all'
+    });
+    
+    const base64Credentials = Buffer.from(`${process.env.APS_CLIENT_ID}:${process.env.APS_CLIENT_SECRET}`).toString('base64');
+    const tokenHeaders = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${base64Credentials}`
+    };
+    
+    const response = await axios.post('https://developer.api.autodesk.com/authentication/v2/token', tokenRequestBody, { headers: tokenHeaders });
+    return response.data.access_token;
+}
+
+// Helper function to upload file using signed URL
+async function uploadFileWithSignedUrl(headers, bucketName, objectName, filePath, contentType, io, socketId) {
+    // Step 1: Get signed upload URL
+    const signedUrlResponse = await axios.get(
+        `https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects/${objectName}/signeds3upload`,
+        { headers }
+    );
+    
+    const uploadData = signedUrlResponse.data;
+    
+    // Step 2: Upload file to signed URL
+    const fileBuffer = await fs.readFile(filePath);
+    await axios.put(uploadData.urls[0], fileBuffer, {
+        headers: {
+            'Content-Type': contentType
+        }
+    });
+    
+    // Step 3: Complete the upload
+    const completeResponse = await axios.post(
+        `https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects/${objectName}/signeds3upload`,
+        { uploadKey: uploadData.uploadKey },
+        { headers }
+    );
+    
+    io.to(socketId).emit('status', { message: `${objectName} uploaded successfully.` });
+    
+    // Return the object information
+    return {
+        objectId: completeResponse.data.objectId,
+        objectKey: completeResponse.data.objectKey,
+        urn: Buffer.from(completeResponse.data.objectId).toString('base64').replace(/=/g, '')
+    };
+}
 
 // Configure multer for file uploads
 const upload = multer({ dest: 'uploads/' });
@@ -60,10 +114,82 @@ function initializeServer(io) {
     app.post('/api/aps/activity', createActivityHandler);
     app.post('/api/aps/bucket', createOSSBucketHandler);
     // Note: /api/aps/upload/single route is handled by individual upload handlers above
+    // Unified upload endpoint (matching reference implementation)
+    app.post('/api/aps/upload/single', upload.single('file'), async (req, res) => {
+        const { socketId, fileType } = req.body;
+        const io = req.app.get('io');
+        
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        if (!fileType) {
+            return res.status(400).json({ error: 'fileType is required' });
+        }
+
+        try {
+            // Route to appropriate handler based on fileType
+            switch (fileType) {
+                case 'python':
+                    req.file.fieldname = 'pythonFile';
+                    return await uploadPythonDependenciesHandler(req, res);
+                case 'rvt':
+                    req.file.fieldname = 'rvtFile';
+                    return await uploadRevitFileHandler(req, res);
+                case 'dynamo':
+                    req.file.fieldname = 'dynFile';
+                    return await uploadDynamoFileHandler(req, res);
+                case 'packages':
+                    req.file.fieldname = 'packagesFile';
+                    return await uploadPackagesHandler(req, res);
+                case 'json':
+                    // Handle JSON file upload using signed URLs
+                    const token = await getAutodeskToken();
+                    const headers = {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    const bucketName = process.env.APS_BUCKET_NAME;
+                    const fileName = 'run.json';
+                    
+                    if (io && socketId) {
+                        io.to(socketId).emit('status', { message: '--- Step: UPLOAD JSON FILE ---' });
+                        io.to(socketId).emit('status', { message: `Uploading ${fileName} to bucket...` });
+                    }
+                    
+                    const uploadResult = await uploadFileWithSignedUrl(
+                        headers,
+                        bucketName,
+                        fileName,
+                        req.file.path,
+                        'application/json',
+                        io,
+                        socketId
+                    );
+                    
+                    return res.status(200).json({
+                        message: 'JSON file uploaded successfully',
+                        fileName: fileName
+                    });
+                default:
+                    return res.status(400).json({ error: `Unknown file type: ${fileType}` });
+            }
+        } catch (err) {
+            const message = err.response ? JSON.stringify(err.response.data, null, 2) : err.message;
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `--- ERROR ---<br/>${message}` });
+            }
+            res.status(err.response?.status || 500).json({
+                error: `Failed to upload ${fileType} file.`,
+                details: err.response?.data || message
+            });
+        }
+    });
+    app.post('/api/aps/upload/dyn-to-json-preview', upload.single('dynFile'), convertDynamoToJSONHandler);
     app.post('/api/aps/upload/revit', upload.single('rvtFile'), uploadRevitFileHandler);
     app.post('/api/aps/upload/dynamo', upload.single('dynFile'), uploadDynamoFileHandler);
     app.post('/api/aps/convert/dyn-to-json', upload.single('dynFile'), convertDynamoToJSONHandler);
-    app.post('/api/aps/upload/dyn-to-json-preview', upload.single('dynFile'), convertDynamoToJSONHandler);
     app.post('/api/aps/upload/json', uploadJSONFileHandler);
     // JSON content upload route (inline to match reference)
     app.post('/api/aps/upload/json-content', async (req, res) => {
