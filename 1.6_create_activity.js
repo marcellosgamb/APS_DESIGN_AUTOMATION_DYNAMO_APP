@@ -20,6 +20,10 @@ const APS_BUNDLE_APP_NAME = process.env.APS_BUNDLE_APP_NAME;
 // .env file should contain: PORT=XXXX (set your desired port)
 const PORT = process.env.PORT;
 
+// Constants matching reference implementation
+const ACTIVITY_ALIAS = 'default';
+const ENGINE = 'Autodesk.Revit+2026';
+
 // START TOKEN MANAGEMENT SECTION
 async function getAutodeskToken() {
     console.log('Getting new token from Autodesk...');
@@ -66,20 +70,37 @@ async function createTokenHeader() {
 }
 // END TOKEN MANAGEMENT SECTION
 
-// MAIN ROUTE HANDLER - Export this for use in server.js
+// MAIN ROUTE HANDLER - Export this for use in server.js WITH SOCKET.IO SUPPORT
 const createActivityHandler = async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     console.log('Starting operation: Create Activity');
+    
+    // Send initial status to browser log
+    if (io && socketId) {
+        io.to(socketId).emit('status', { message: '--- Step: CREATE ACTIVITY ---' });
+    }
     
     try {
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
-        const tokenHeader = await createTokenHeader();
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Getting authentication token...' });
+        }
+        const headers = await createTokenHeader();
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Authentication token obtained' });
+        }
         
-        // Step 2: Get nickname for activity name
-        const activityName = `${APS_NICKNAME}.${APS_ACTIVITY_NAME}+default`;
+        // Step 2: Create activity definition (exactly matching reference structure)
+        const qualifiedActivityId = `${APS_NICKNAME}.${APS_ACTIVITY_NAME}`;
+        console.log(`Step 2: Creating activity: ${qualifiedActivityId}`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Creating Activity: ${qualifiedActivityId}` });
+        }
         
-        // Step 3: Create activity definition (using reference working structure)
-        const activityDefinition = {
+        const activityData = {
             id: APS_ACTIVITY_NAME,
             commandLine: [`$(engine.path)\\\\revitcoreconsole.exe /i "$(args[rvtFile].path)" /al "$(appbundles[${APS_BUNDLE_APP_NAME}].path)"`],
             parameters: {
@@ -132,37 +153,98 @@ const createActivityHandler = async (req, res) => {
                     localName: "result.rvt"
                 }
             },
-            engine: "Autodesk.Revit+2026",
-            appbundles: [`${APS_NICKNAME}.${APS_BUNDLE_APP_NAME}+default`],
-            description: "Activity for running Dynamo scripts on Revit models"
+            engine: ENGINE,
+            appbundles: [`${APS_NICKNAME}.${APS_BUNDLE_APP_NAME}+${ACTIVITY_ALIAS}`],
+            description: `Activity for Dynamo Revit, version ${new Date().toISOString()}`
         };
         
-        console.log(`Step 2: Creating activity: ${activityName}`);
+        // Step 3: Create the activity
+        console.log('Step 3: Making API call to create activity');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Creating activity...' });
+        }
         
-        // Step 4: Make API call to Autodesk
-        console.log('Step 4: Making API call to Autodesk');
-        const response = await axios.post(`https://developer.api.autodesk.com/da/us-east/v3/activities`, activityDefinition, { headers: tokenHeader });
+        const newActivity = await axios.post(`https://developer.api.autodesk.com/da/us-east/v3/activities`, activityData, { headers });
+        console.log(`Activity created (version ${newActivity.data.version})`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Activity created (version ${newActivity.data.version}).` });
+        }
+        
+        // Step 4: Create/update alias (exactly matching reference logic)
+        console.log(`Step 4: Creating alias '${ACTIVITY_ALIAS}' for version ${newActivity.data.version}`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Creating alias '${ACTIVITY_ALIAS}' for version ${newActivity.data.version}...` });
+        }
+        
+        try {
+            // Try to create the alias
+            await axios.post(
+                `https://developer.api.autodesk.com/da/us-east/v3/activities/${APS_ACTIVITY_NAME}/aliases`,
+                { id: ACTIVITY_ALIAS, version: newActivity.data.version },
+                { headers }
+            );
+            console.log(`Activity alias '${ACTIVITY_ALIAS}' created`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `Activity alias '${ACTIVITY_ALIAS}' created.` });
+            }
+        } catch (aliasErr) {
+            if (aliasErr.response && aliasErr.response.status === 409) {
+                // Alias already exists, update it (exactly matching reference)
+                console.log(`Alias exists, updating to version ${newActivity.data.version}`);
+                if (io && socketId) {
+                    io.to(socketId).emit('status', { message: `Alias exists, updating to version ${newActivity.data.version}...` });
+                }
+                await axios.patch(
+                    `https://developer.api.autodesk.com/da/us-east/v3/activities/${APS_ACTIVITY_NAME}/aliases/${ACTIVITY_ALIAS}`,
+                    { version: newActivity.data.version },
+                    { headers }
+                );
+                console.log(`Activity alias '${ACTIVITY_ALIAS}' updated`);
+                if (io && socketId) {
+                    io.to(socketId).emit('status', { message: `Activity alias '${ACTIVITY_ALIAS}' updated.` });
+                }
+            } else {
+                throw aliasErr;
+            }
+        }
         
         console.log('Operation completed successfully');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Activity setup complete.' });
+        }
         
-        // Step 5: Send success response back to browser
+        // Step 5: Send success response back to browser (matching reference format)
         res.status(200).json({ 
             success: true,
             operation: 'Create Activity',
             message: 'Activity created successfully',
-            details: response.data,
-            educational_note: 'This Activity defines how Dynamo processes your files: inputs (RVT + JSON) → outputs (modified RVT)',
+            details: {
+                version: newActivity.data.version,
+                alias: ACTIVITY_ALIAS,
+                qualifiedId: `${qualifiedActivityId}+${ACTIVITY_ALIAS}`
+            },
             timestamp: new Date().toISOString()
         });
         
     } catch (error) {
-        console.log('Operation failed:', error.message);
+        const message = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+        console.log('Operation failed:', message);
         
-        res.status(500).json({
+        // Show detailed error in browser log
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `--- ERROR ---` });
+            io.to(socketId).emit('status', { message: `Operation failed: ${error.message}` });
+            if (error.response && error.response.data) {
+                const errorDetails = JSON.stringify(error.response.data, null, 2);
+                io.to(socketId).emit('status', { message: `Error details: ${errorDetails}` });
+            }
+        }
+        
+        res.status(error.response?.status || 500).json({
             success: false,
             operation: 'Create Activity',
             error: 'Failed to create activity',
-            details: error.response?.data || error.message,
+            details: error.response?.data || message,
             timestamp: new Date().toISOString()
         });
     }

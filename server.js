@@ -59,14 +59,82 @@ function initializeServer(io) {
     app.post('/api/aps/appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
     app.post('/api/aps/activity', createActivityHandler);
     app.post('/api/aps/bucket', createOSSBucketHandler);
-    // Unified upload route that matches the reference implementation
-    app.post('/api/aps/upload/single', upload.single('file'), require('./unified-upload-handler.js'));
+    // Note: /api/aps/upload/single route is handled by individual upload handlers above
     app.post('/api/aps/upload/revit', upload.single('rvtFile'), uploadRevitFileHandler);
     app.post('/api/aps/upload/dynamo', upload.single('dynFile'), uploadDynamoFileHandler);
     app.post('/api/aps/convert/dyn-to-json', upload.single('dynFile'), convertDynamoToJSONHandler);
     app.post('/api/aps/upload/dyn-to-json-preview', upload.single('dynFile'), convertDynamoToJSONHandler);
     app.post('/api/aps/upload/json', uploadJSONFileHandler);
-    app.post('/api/aps/upload/json-content', require('./json-content-upload-handler.js'));
+    // JSON content upload route (inline to match reference)
+    app.post('/api/aps/upload/json-content', async (req, res) => {
+        const { socketId, jsonContent } = req.body;
+        const io = req.app.get('io');
+        
+        if (!jsonContent) {
+            return res.status(400).json({ error: 'No JSON content provided' });
+        }
+
+        try {
+            const axios = require('axios');
+            
+            // Get auth token
+            async function getAutodeskToken() {
+                const tokenRequestBody = new URLSearchParams({
+                    'grant_type': 'client_credentials',
+                    'scope': 'bucket:create bucket:read bucket:delete data:read data:write code:all'
+                });
+                
+                const base64Credentials = Buffer.from(`${process.env.APS_CLIENT_ID}:${process.env.APS_CLIENT_SECRET}`).toString('base64');
+                const tokenHeaders = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${base64Credentials}`
+                };
+                
+                const response = await axios.post('https://developer.api.autodesk.com/authentication/v2/token', tokenRequestBody, { headers: tokenHeaders });
+                return response.data.access_token;
+            }
+            
+            const token = await getAutodeskToken();
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            
+            const bucketName = process.env.APS_BUCKET_NAME;
+            
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: '--- Step: UPLOAD JSON CONTENT ---' });
+                io.to(socketId).emit('status', { message: 'Uploading run.json to bucket...' });
+            }
+            
+            // Upload JSON content directly to bucket
+            await axios.put(
+                `https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects/run.json`,
+                jsonContent,
+                { headers: { ...headers, 'Content-Type': 'application/json' } }
+            );
+            
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: 'run.json uploaded successfully.' });
+            }
+            
+            res.status(200).json({ 
+                message: 'JSON content uploaded successfully as run.json',
+                fileName: 'run.json'
+            });
+
+        } catch (err) {
+            const message = err.response ? JSON.stringify(err.response.data, null, 2) : err.message;
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `--- ERROR ---` });
+                io.to(socketId).emit('status', { message: message });
+            }
+            res.status(err.response?.status || 500).json({
+                error: 'Failed to upload JSON content.',
+                details: err.response?.data || message
+            });
+        }
+    });
     app.post('/api/aps/upload/python', upload.single('pythonFile'), uploadPythonDependenciesHandler);
     app.post('/api/aps/upload/packages', upload.single('packagesFile'), uploadPackagesHandler);
     app.post('/api/aps/workitem', runWorkitemHandler);
