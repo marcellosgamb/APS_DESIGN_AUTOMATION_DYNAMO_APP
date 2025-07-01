@@ -385,7 +385,29 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Socket.IO setup for real-time updates
+        let socket = io();
+        let socketId = null;
+        
+        socket.on('connect', () => {
+            appendToLog('Connected to server for real-time updates');
+        });
+        
+        socket.on('socketId', (id) => {
+            socketId = id;
+            appendToLog(`Client registered with socket ID: ${socketId}`);
+        });
+        
+        socket.on('status', (data) => {
+            appendToLog(data.message);
+        });
+        
+        socket.on('disconnect', () => {
+            appendToLog('Disconnected from server');
+        });
+
         // Get server URL dynamically (no hardcoded localhost:8080)
         function getServerUrl() {
             return window.location.origin;
@@ -458,8 +480,9 @@
                 const response = await fetch(`${serverUrl}${endpoint}`, options);
                 const data = await response.json();
                 
-                if (data.success) {
-                    appendToLog(`✅ ${data.operation}: ${data.message}`);
+                if (data.success || data.message) {
+                    const message = data.message || data.operation;
+                    appendToLog(`✅ ${message}`);
                     if (data.details) {
                         if (typeof data.details === 'string') {
                             appendToLog(`   Details: ${data.details}`);
@@ -468,7 +491,8 @@
                         }
                     }
                 } else {
-                    appendToLog(`❌ ${data.operation}: ${data.error}`);
+                    const errorMsg = data.error || 'Unknown error';
+                    appendToLog(`❌ ${errorMsg}`);
                     if (data.details) {
                         appendToLog(`   Error details: ${JSON.stringify(data.details, null, 2)}`);
                     }
@@ -481,36 +505,82 @@
             }
         }
 
-        // Event listeners for all buttons
-        document.getElementById('btnClearDA').addEventListener('click', () => makeApiCall('/clear-da-resources', 'DELETE'));
-        document.getElementById('btnClearBucket').addEventListener('click', () => makeApiCall('/clear-oss-bucket', 'DELETE'));
-        document.getElementById('btnGetToken').addEventListener('click', () => makeApiCall('/get-access-token', 'POST'));
-        document.getElementById('btnGetNickname').addEventListener('click', () => makeApiCall('/get-nickname', 'GET'));
-        document.getElementById('btnSetNickname').addEventListener('click', () => makeApiCall('/set-nickname', 'POST'));
-        document.getElementById('btnCreateActivity').addEventListener('click', () => makeApiCall('/create-activity', 'POST'));
-        document.getElementById('btnCreateBucket').addEventListener('click', () => makeApiCall('/create-oss-bucket', 'POST'));
-        document.getElementById('btnConvertJson').addEventListener('click', () => makeApiCall('/convert-dynamo-to-json', 'POST'));
-        document.getElementById('btnUploadJson').addEventListener('click', () => makeApiCall('/upload-json-file', 'POST'));
-        document.getElementById('btnRunWorkitem').addEventListener('click', () => makeApiCall('/run-workitem', 'POST'));
+        // Function to make API calls with Socket.IO for real-time updates
+        async function makeApiCallWithSocket(endpoint, method = 'GET', formData = null) {
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
+            
+            const serverUrl = getServerUrl();
+            
+            try {
+                appendToLog(`Making ${method} request to ${endpoint}...`);
+                
+                const options = {
+                    method: method,
+                    headers: {}
+                };
+                
+                if (formData) {
+                    options.body = formData;
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({ socketId: socketId });
+                }
+                
+                const response = await fetch(`${serverUrl}${endpoint}`, options);
+                const data = await response.json();
+                
+                // Don't log here - Socket.IO will handle real-time updates
+                return data;
+            } catch (error) {
+                appendToLog(`❌ Network error: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Event listeners for all buttons - Updated to match reference API paths
+        document.getElementById('btnClearDA').addEventListener('click', () => makeApiCall('/api/aps/account', 'DELETE'));
+        document.getElementById('btnClearBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'DELETE'));
+        document.getElementById('btnGetToken').addEventListener('click', () => makeApiCall('/api/aps/token', 'POST'));
+        document.getElementById('btnGetNickname').addEventListener('click', () => makeApiCall('/api/aps/nickname', 'GET'));
+        document.getElementById('btnSetNickname').addEventListener('click', () => makeApiCall('/api/aps/nickname', 'POST'));
+        document.getElementById('btnCreateActivity').addEventListener('click', () => makeApiCall('/api/aps/activity', 'POST'));
+        document.getElementById('btnCreateBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'POST'));
+        document.getElementById('btnConvertJson').addEventListener('click', () => makeApiCall('/api/aps/convert/dyn-to-json', 'POST'));
+        document.getElementById('btnUploadJson').addEventListener('click', () => makeApiCall('/api/aps/upload/json', 'POST'));
+        document.getElementById('btnRunWorkitem').addEventListener('click', () => {
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
+            makeApiCallWithSocket('/api/aps/workitem', 'POST', null);
+        });
         document.getElementById('btnDownloadJson').addEventListener('click', () => {
             const serverUrl = getServerUrl();
-            window.open(`${serverUrl}/download-result-json`, '_blank');
+            window.open(`${serverUrl}/api/aps/download/result-json`, '_blank');
         });
         document.getElementById('btnDownloadRvt').addEventListener('click', () => {
             const serverUrl = getServerUrl();
-            window.open(`${serverUrl}/download-result-rvt`, '_blank');
+            window.open(`${serverUrl}/api/aps/download/result-rvt`, '_blank');
         });
 
-        // File upload handlers
+        // File upload handlers - Updated to match reference API paths and include Socket.IO
         document.getElementById('btnUploadAppBundle').addEventListener('click', () => {
             const fileInput = document.getElementById('appBundleFile');
             if (!fileInput.files[0]) {
                 appendToLog('❌ Please select the DynamoRevitDA.zip file first');
                 return;
             }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
             const formData = new FormData();
             formData.append('appBundleFile', fileInput.files[0]);
-            makeApiCall('/upload-appbundle', 'POST', formData);
+            formData.append('socketId', socketId);
+            makeApiCall('/api/aps/appbundle', 'POST', formData);
         });
 
         document.getElementById('btnUploadPython').addEventListener('click', () => {
@@ -519,9 +589,15 @@
                 appendToLog('❌ Please select the pythonDependencies.zip file first');
                 return;
             }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
             const formData = new FormData();
-            formData.append('pythonFile', fileInput.files[0]);
-            makeApiCall('/upload-python-dependencies', 'POST', formData);
+            formData.append('file', fileInput.files[0]);
+            formData.append('fileType', 'python');
+            formData.append('socketId', socketId);
+            makeApiCall('/api/aps/upload/single', 'POST', formData);
         });
 
         document.getElementById('btnUploadRvt').addEventListener('click', () => {
@@ -530,9 +606,15 @@
                 appendToLog('❌ Please select a Revit (.rvt) file first');
                 return;
             }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
             const formData = new FormData();
-            formData.append('rvtFile', fileInput.files[0]);
-            makeApiCall('/upload-revit-file', 'POST', formData);
+            formData.append('file', fileInput.files[0]);
+            formData.append('fileType', 'rvt');
+            formData.append('socketId', socketId);
+            makeApiCall('/api/aps/upload/single', 'POST', formData);
         });
 
         document.getElementById('btnUploadDyn').addEventListener('click', () => {
@@ -541,9 +623,15 @@
                 appendToLog('❌ Please select a Dynamo (.dyn) file first');
                 return;
             }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
             const formData = new FormData();
-            formData.append('dynFile', fileInput.files[0]);
-            makeApiCall('/upload-dynamo-file', 'POST', formData);
+            formData.append('file', fileInput.files[0]);
+            formData.append('fileType', 'dynamo');
+            formData.append('socketId', socketId);
+            makeApiCall('/api/aps/upload/single', 'POST', formData);
         });
 
         document.getElementById('btnUploadPackages').addEventListener('click', () => {
@@ -552,9 +640,15 @@
                 appendToLog('❌ Please select a packages.zip file first');
                 return;
             }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
             const formData = new FormData();
-            formData.append('packagesFile', fileInput.files[0]);
-            makeApiCall('/upload-packages', 'POST', formData);
+            formData.append('file', fileInput.files[0]);
+            formData.append('fileType', 'packages');
+            formData.append('socketId', socketId);
+            makeApiCall('/api/aps/upload/single', 'POST', formData);
         });
 
         // Initialize

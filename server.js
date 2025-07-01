@@ -25,45 +25,68 @@ const runWorkitemHandler = require('./3.1_run_workitem.js');
 const downloadResultJSONHandler = require('./4.1_download_result_json.js');
 const downloadResultRVTHandler = require('./4.2_download_result_rvt.js');
 
-// Create Express app
-const app = express();
+function initializeServer(io) {
+    // Create Express app
+    const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    // Store io instance for use in routes
+    app.set('io', io);
 
-// Enable CORS for frontend calls
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+    // Middleware
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (HTML)
-app.use(express.static('.'));
+    // Enable CORS for frontend calls
+    app.use((req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
+        next();
+    });
 
-// Set up all the unified routes
-app.delete('/clear-da-resources', clearDAResourcesHandler);
-app.delete('/clear-oss-bucket', clearOSSBucketHandler);
-app.post('/get-access-token', getAccessTokenHandler);
-app.get('/get-nickname', getNicknameHandler);
-app.post('/set-nickname', setNicknameHandler);
-app.post('/upload-appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
-app.post('/create-activity', createActivityHandler);
-app.post('/create-oss-bucket', createOSSBucketHandler);
-app.post('/upload-revit-file', upload.single('rvtFile'), uploadRevitFileHandler);
-app.post('/upload-dynamo-file', upload.single('dynFile'), uploadDynamoFileHandler);
-app.post('/convert-dynamo-to-json', convertDynamoToJSONHandler);
-app.post('/upload-json-file', uploadJSONFileHandler);
-app.post('/upload-python-dependencies', upload.single('pythonFile'), uploadPythonDependenciesHandler);
-app.post('/upload-packages', upload.single('packagesFile'), uploadPackagesHandler);
-app.post('/run-workitem', runWorkitemHandler);
-app.get('/download-result-json', downloadResultJSONHandler);
-app.get('/download-result-rvt', downloadResultRVTHandler);
+    // Serve static files (HTML)
+    app.use(express.static('.'));
+
+    // Set up all the unified routes with API paths to match reference
+    app.delete('/api/aps/account', clearDAResourcesHandler);
+    app.delete('/api/aps/bucket', clearOSSBucketHandler);
+    app.post('/api/aps/token', getAccessTokenHandler);
+    app.get('/api/aps/nickname', getNicknameHandler);
+    app.post('/api/aps/nickname', setNicknameHandler);
+    app.post('/api/aps/appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
+    app.post('/api/aps/activity', createActivityHandler);
+    app.post('/api/aps/bucket', createOSSBucketHandler);
+    app.post('/api/aps/upload/revit', upload.single('rvtFile'), uploadRevitFileHandler);
+    app.post('/api/aps/upload/dynamo', upload.single('dynFile'), uploadDynamoFileHandler);
+    app.post('/api/aps/convert/dyn-to-json', convertDynamoToJSONHandler);
+    app.post('/api/aps/upload/json', uploadJSONFileHandler);
+    app.post('/api/aps/upload/python', upload.single('pythonFile'), uploadPythonDependenciesHandler);
+    app.post('/api/aps/upload/packages', upload.single('packagesFile'), uploadPackagesHandler);
+    app.post('/api/aps/workitem', runWorkitemHandler);
+    app.get('/api/aps/download/result-json', downloadResultJSONHandler);
+    app.get('/api/aps/download/result-rvt', downloadResultRVTHandler);
+
+    // Keep legacy routes for backward compatibility
+    app.delete('/clear-da-resources', clearDAResourcesHandler);
+    app.delete('/clear-oss-bucket', clearOSSBucketHandler);
+    app.post('/get-access-token', getAccessTokenHandler);
+    app.get('/get-nickname', getNicknameHandler);
+    app.post('/set-nickname', setNicknameHandler);
+    app.post('/upload-appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
+    app.post('/create-activity', createActivityHandler);
+    app.post('/create-oss-bucket', createOSSBucketHandler);
+    app.post('/upload-revit-file', upload.single('rvtFile'), uploadRevitFileHandler);
+    app.post('/upload-dynamo-file', upload.single('dynFile'), uploadDynamoFileHandler);
+    app.post('/convert-dynamo-to-json', convertDynamoToJSONHandler);
+    app.post('/upload-json-file', uploadJSONFileHandler);
+    app.post('/upload-python-dependencies', upload.single('pythonFile'), uploadPythonDependenciesHandler);
+    app.post('/upload-packages', upload.single('packagesFile'), uploadPackagesHandler);
+    app.post('/run-workitem', runWorkitemHandler);
+    app.get('/download-result-json', downloadResultJSONHandler);
+    app.get('/download-result-rvt', downloadResultRVTHandler);
 
 // Source code viewing route
 app.get('/view-source/:filename', (req, res) => {
@@ -92,4 +115,16 @@ app.get('/view-source/:filename', (req, res) => {
     }
 });
 
-module.exports = app;
+    // Error handling
+    app.use((err, req, res, next) => {
+        console.error(err.stack);
+        res.status(err.status || 500).json({
+            message: err.message,
+            error: err
+        });
+    });
+
+    return app;
+}
+
+module.exports = initializeServer;
