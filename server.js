@@ -1,6 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const multer = require('multer');
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/' });
 
 // Import all the individual x.x.js handlers
 const clearDAResourcesHandler = require('./0.1_clear_da_resources.js');
@@ -48,15 +52,15 @@ app.delete('/clear-oss-bucket', clearOSSBucketHandler);
 app.post('/get-access-token', getAccessTokenHandler);
 app.get('/get-nickname', getNicknameHandler);
 app.post('/set-nickname', setNicknameHandler);
-app.post('/upload-appbundle', uploadAppBundleHandler);
+app.post('/upload-appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
 app.post('/create-activity', createActivityHandler);
 app.post('/create-oss-bucket', createOSSBucketHandler);
-app.post('/upload-revit-file', uploadRevitFileHandler);
-app.post('/upload-dynamo-file', uploadDynamoFileHandler);
+app.post('/upload-revit-file', upload.single('rvtFile'), uploadRevitFileHandler);
+app.post('/upload-dynamo-file', upload.single('dynFile'), uploadDynamoFileHandler);
 app.post('/convert-dynamo-to-json', convertDynamoToJSONHandler);
 app.post('/upload-json-file', uploadJSONFileHandler);
-app.post('/upload-python-dependencies', uploadPythonDependenciesHandler);
-app.post('/upload-packages', uploadPackagesHandler);
+app.post('/upload-python-dependencies', upload.single('pythonFile'), uploadPythonDependenciesHandler);
+app.post('/upload-packages', upload.single('packagesFile'), uploadPackagesHandler);
 app.post('/run-workitem', runWorkitemHandler);
 app.get('/download-result-json', downloadResultJSONHandler);
 app.get('/download-result-rvt', downloadResultRVTHandler);
