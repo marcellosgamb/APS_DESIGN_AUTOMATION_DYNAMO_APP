@@ -582,11 +582,63 @@
         });
         document.getElementById('btnDownloadJson').addEventListener('click', () => {
             const serverUrl = getServerUrl();
-            window.open(`${serverUrl}/api/aps/download/result-json`, '_blank');
+            
+            // Get the signed download URL from our API
+            fetch(`${serverUrl}/api/aps/download/result-json`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.details && data.details.download_url) {
+                        // Create a download link and trigger it
+                        const downloadUrl = data.details.download_url;
+                        const fileName = data.details.file_name || 'result.json';
+                        
+                        // Create temporary link element
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = fileName;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        appendToLog(`✅ ${fileName} download started`);
+                    } else {
+                        appendToLog(`❌ ${data.error || 'Failed to get download URL'}`);
+                    }
+                })
+                .catch(error => {
+                    appendToLog(`❌ Error: ${error.message}`);
+                });
         });
         document.getElementById('btnDownloadRvt').addEventListener('click', () => {
             const serverUrl = getServerUrl();
-            window.open(`${serverUrl}/api/aps/download/result-rvt`, '_blank');
+            
+            // Get the signed download URL from our API
+            fetch(`${serverUrl}/api/aps/download/result-rvt`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.details && data.details.download_url) {
+                        // Create a download link and trigger it
+                        const downloadUrl = data.details.download_url;
+                        const fileName = data.details.file_name || 'result.rvt';
+                        
+                        // Create temporary link element
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = fileName;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        appendToLog(`✅ ${fileName} download started`);
+                    } else {
+                        appendToLog(`❌ ${data.error || 'Failed to get download URL'}`);
+                    }
+                })
+                .catch(error => {
+                    appendToLog(`❌ Error: ${error.message}`);
+                });
         });
 
         // File upload handlers - Updated to match reference API paths and include Socket.IO
