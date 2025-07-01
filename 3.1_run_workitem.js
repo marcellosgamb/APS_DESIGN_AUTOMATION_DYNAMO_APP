@@ -72,9 +72,18 @@ async function checkFileExists(headers, bucketName, objectName) {
     }
 }
 
-// MAIN ROUTE HANDLER - Export this for use in server.js
+// MAIN ROUTE HANDLER - Export this for use in server.js WITH SOCKET.IO SUPPORT
 const runWorkitemHandler = async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     console.log('Starting operation: Run Workitem');
+    
+    // Send initial status to browser log
+    if (io && socketId) {
+        io.to(socketId).emit('status', { message: '--- Step: CREATE WORKITEM ---' });
+        io.to(socketId).emit('status', { message: 'Starting workitem creation and execution...' });
+    }
     
     // DEBUG: Log environment variables
     console.log('DEBUG Environment Variables:');
@@ -82,20 +91,45 @@ const runWorkitemHandler = async (req, res) => {
     console.log(`APS_ACTIVITY_NAME: "${APS_ACTIVITY_NAME}"`);
     console.log(`APS_BUCKET_NAME: "${APS_BUCKET_NAME}"`);
     
+    if (io && socketId) {
+        io.to(socketId).emit('status', { message: `DEBUG: Using nickname: "${APS_NICKNAME}"` });
+        io.to(socketId).emit('status', { message: `DEBUG: Using activity: "${APS_ACTIVITY_NAME}"` });
+        io.to(socketId).emit('status', { message: `DEBUG: Using bucket: "${APS_BUCKET_NAME}"` });
+    }
+    
     try {
         // Step 1: Get authentication headers
         console.log('Step 1: Getting authentication token');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 1: Getting authentication token...' });
+        }
         const headers = await getHeaders();
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: '✅ Authentication token obtained' });
+        }
         
         // Step 2: Check if packages.zip exists in the bucket (matching reference)
         console.log('Step 2: Checking for optional packages in bucket');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 2: Checking for optional packages in bucket...' });
+        }
         const packagesExists = await checkFileExists(headers, APS_BUCKET_NAME, PACKAGES_FILE);
         console.log(`Packages file exists: ${packagesExists}`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Packages file exists: ${packagesExists}` });
+        }
         
         // Step 3: Create workitem (exactly matching reference structure)
         console.log('Step 3: Creating workitem');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 3: Creating workitem...' });
+        }
+        
         const activityId = `${APS_NICKNAME}.${APS_ACTIVITY_NAME}+${ACTIVITY_ALIAS}`;
         console.log(`DEBUG: Constructed activityId: "${activityId}"`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `DEBUG: Constructed activityId: "${activityId}"` });
+        }
         
         const workitemData = {
             activityId: activityId,
@@ -148,19 +182,37 @@ const runWorkitemHandler = async (req, res) => {
                 }
             };
             console.log(`Including ${PACKAGES_FILE} in workitem arguments`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `Including ${PACKAGES_FILE} in workitem arguments.` });
+            }
         } else {
             console.log(`Skipping ${PACKAGES_FILE} - file not found in bucket`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `Skipping ${PACKAGES_FILE} - file not found in bucket.` });
+            }
         }
         
         console.log(`Creating workitem with activity: ${activityId}`);
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Creating workitem with activity: ${activityId}` });
+        }
+        
         const workitemResponse = await axios.post('https://developer.api.autodesk.com/da/us-east/v3/workitems', workitemData, { headers });
         const workitemId = workitemResponse.data.id;
         
         console.log(`Workitem created with ID: ${workitemId}`);
         console.log('Workitem is being processed...');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `Workitem created with ID: ${workitemId}` });
+            io.to(socketId).emit('status', { message: 'Workitem is being processed...' });
+        }
         
-        // Step 4: Poll for workitem status (matching reference timing)
+        // Step 4: Poll for workitem status (matching reference timing with updates every 5 seconds)
         console.log('Step 4: Polling workitem status');
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: 'Step 4: Polling workitem status (updates every 5 seconds)...' });
+        }
+        
         let status = 'pending';
         let attempts = 0;
         const maxAttempts = 60; // 5 minutes with 5-second intervals
@@ -176,6 +228,9 @@ const runWorkitemHandler = async (req, res) => {
             status = statusResponse.data.status;
             
             console.log(`Workitem status: ${status}`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `Workitem status: ${status} (attempt ${attempts + 1}/${maxAttempts})` });
+            }
             attempts++;
         }
         
@@ -185,6 +240,10 @@ const runWorkitemHandler = async (req, res) => {
         if (status === 'success') {
             console.log('Workitem completed successfully!');
             console.log(`Result file available as: ${RESULT_FILE}`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: 'Workitem completed successfully!' });
+                io.to(socketId).emit('status', { message: `Result file available as: ${RESULT_FILE}` });
+            }
             
             res.status(200).json({ 
                 success: true,
@@ -202,6 +261,10 @@ const runWorkitemHandler = async (req, res) => {
         } else {
             const errorMessage = `Workitem failed with status: ${status}`;
             console.log(`--- ERROR --- ${errorMessage}`);
+            if (io && socketId) {
+                io.to(socketId).emit('status', { message: `--- ERROR ---` });
+                io.to(socketId).emit('status', { message: errorMessage });
+            }
             
             res.status(500).json({
                 success: false,
@@ -219,6 +282,17 @@ const runWorkitemHandler = async (req, res) => {
     } catch (error) {
         const message = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
         console.log('Operation failed:', message);
+        
+        // Show detailed error in browser log
+        if (io && socketId) {
+            io.to(socketId).emit('status', { message: `--- ERROR ---` });
+            io.to(socketId).emit('status', { message: `Operation failed: ${error.message}` });
+            if (error.response && error.response.data) {
+                // Show the specific error details like "activity not found"
+                const errorDetails = JSON.stringify(error.response.data, null, 2);
+                io.to(socketId).emit('status', { message: `Error details: ${errorDetails}` });
+            }
+        }
         
         res.status(error.response?.status || 500).json({
             success: false,
