@@ -260,7 +260,7 @@
                     <div class="card mb-2">
                         <div class="card-body">
                             <h6>Result Report (JSON)</h6>
-                            <p class="small text-muted mb-2">Contains execution details and outputs.</p>
+                            <p class="small text-muted mb-2">Contains text from Dynamo output node or nodes designated as "as output".</p>
                             <div class="row">
                                 <div class="col-8">
                                     <button id="btnDownloadJson" class="btn btn-success w-100">Download Result JSON</button>
@@ -587,10 +587,10 @@
             fetch(`${serverUrl}/api/aps/download/result-json`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success && data.details && data.details.download_url) {
+                    if (data.downloadUrl) {
                         // Create a download link and trigger it
-                        const downloadUrl = data.details.download_url;
-                        const fileName = data.details.file_name || 'result.json';
+                        const downloadUrl = data.downloadUrl;
+                        const fileName = data.fileName || 'result.json';
                         
                         // Create temporary link element
                         const link = document.createElement('a');

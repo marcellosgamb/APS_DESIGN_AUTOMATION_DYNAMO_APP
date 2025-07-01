@@ -92,23 +92,10 @@ const downloadResultRVTHandler = async (req, res) => {
     } catch (error) {
         console.log('Operation failed:', error.message);
         
-        if (error.response && error.response.status === 404) {
-            res.status(404).json({
-                success: false,
-                operation: 'Download Result RVT',
-                error: 'Result file not found',
-                details: 'The result.rvt file does not exist. Please run a workitem first.',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                operation: 'Download Result RVT',
-                error: 'Failed to generate download URL',
-                details: error.response?.data || error.message,
-                timestamp: new Date().toISOString()
-            });
-        }
+        res.status(error.response?.status || 500).json({
+            error: `Failed to generate download URL for ${fileName}`,
+            details: error.response?.data || error.message
+        });
     }
 };
 
