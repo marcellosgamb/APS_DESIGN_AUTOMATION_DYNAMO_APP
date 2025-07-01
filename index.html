@@ -472,77 +472,121 @@
             }
         }
 
-        // Function to display Dynamo execution results (from reference implementation)
+        // Function to display Dynamo execution results (clean Dynamo-style formatting)
         function displayDynamoOutputs(resultData) {
-            appendToLog(`<br/>--- 📊 DYNAMO EXECUTION RESULTS ---`);
+            appendToLog(`<br/><div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                <h4 style="color: #495057; margin: 0 0 15px 0; font-size: 16px; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+                    🔍 Dynamo Execution Results
+                </h4>`);
             
             if (!resultData || !resultData.info) {
-                appendToLog('⚠️ No execution info found in result.json');
+                appendToLog(`<div style="color: #6c757d; font-style: italic;">⚠️ No execution data found</div></div>`);
                 return;
             }
             
             const info = resultData.info;
             
-            // Display execution status with better formatting
+            // Status with clean styling
             const status = info.status || 'Unknown';
+            const statusColor = status === 'Succeeded' ? '#28a745' : status === 'Failed' ? '#dc3545' : '#ffc107';
             const statusIcon = status === 'Succeeded' ? '✅' : status === 'Failed' ? '❌' : '⚠️';
-            appendToLog(`<strong>${statusIcon} Status:</strong> <span style="color: ${status === 'Succeeded' ? 'green' : status === 'Failed' ? 'red' : 'orange'};">${status}</span>`);
             
-            // Display issues if any with better formatting
+            appendToLog(`<div style="margin-bottom: 15px;">
+                <strong style="color: #495057;">Status:</strong> 
+                <span style="color: ${statusColor}; font-weight: bold;">${statusIcon} ${status}</span>
+            </div>`);
+            
+            // Issues section
             if (info.issues && info.issues.length > 0) {
-                appendToLog(`<br/><strong>⚠️ Issues Found (${info.issues.length}):</strong>`);
+                appendToLog(`<div style="margin-bottom: 15px;">
+                    <strong style="color: #495057;">⚠️ Issues (${info.issues.length}):</strong>
+                    <div style="margin-left: 15px; margin-top: 5px;">`);
                 info.issues.forEach((issue, index) => {
-                    appendToLog(`   📋 ${index + 1}. ${issue}`);
+                    appendToLog(`<div style="color: #dc3545; margin: 2px 0;">• ${issue}</div>`);
                 });
+                appendToLog(`</div></div>`);
             } else {
-                appendToLog(`<br/><strong>✅ Issues:</strong> <span style="color: green;">None - Clean execution!</span>`);
+                appendToLog(`<div style="margin-bottom: 15px;">
+                    <strong style="color: #495057;">Issues:</strong> 
+                    <span style="color: #28a745;">✅ None</span>
+                </div>`);
             }
             
-            // Display outputs with much better formatting
+            // Node outputs - Dynamo style
             if (info.outputs && info.outputs.length > 0) {
-                appendToLog(`<br/><strong>📈 Dynamo Node Outputs (${info.outputs.length}):</strong>`);
+                appendToLog(`<div style="margin-bottom: 15px;">
+                    <strong style="color: #495057;">📊 Node Outputs (${info.outputs.length}):</strong>
+                </div>`);
+                
                 info.outputs.forEach((output, index) => {
-                    appendToLog(`<br/>   <strong>🔗 ${index + 1}. "${output.name}"</strong>`);
-                    appendToLog(`      📝 Type: <em>${output.type || 'Unknown'}</em>`);
+                    appendToLog(`<div style="background: white; border: 1px solid #e9ecef; border-radius: 6px; margin: 8px 0; padding: 12px;">
+                        <div style="font-weight: bold; color: #007bff; margin-bottom: 8px;">
+                            🔗 ${output.name}
+                        </div>
+                        <div style="font-size: 12px; color: #6c757d; margin-bottom: 8px;">
+                            Type: ${output.type || 'Unknown'}
+                        </div>`);
                     
                     if (output.value && Array.isArray(output.value)) {
                         const flatValues = output.value.flat();
-                        appendToLog(`      📊 Count: <strong>${flatValues.length}</strong> items`);
+                        appendToLog(`<div style="color: #495057; margin-bottom: 5px;">
+                            📋 List (${flatValues.length} items)
+                        </div>`);
                         
-                        // Show values in a more readable format
+                        // Dynamo-style list display
                         if (flatValues.length > 0) {
+                            appendToLog(`<div style="background: #f8f9fa; border-left: 3px solid #007bff; padding: 8px; margin: 5px 0; font-family: monospace;">`);
+                            
                             if (flatValues.length <= 10) {
-                                // Show all values if 10 or fewer
-                                appendToLog(`      💾 Values: <code>[${flatValues.join(', ')}]</code>`);
+                                // Show all items for small lists
+                                flatValues.forEach((value, idx) => {
+                                    appendToLog(`<div style="padding: 1px 0; color: #495057;">[${idx}] ${value}</div>`);
+                                });
                             } else {
-                                // Show first 5 and last 2 with count in between
-                                const firstFew = flatValues.slice(0, 5);
-                                const lastFew = flatValues.slice(-2);
-                                appendToLog(`      💾 Values: <code>[${firstFew.join(', ')}, ... (${flatValues.length - 7} more) ..., ${lastFew.join(', ')}]</code>`);
+                                // Show first 5, middle summary, last 3 for large lists
+                                flatValues.slice(0, 5).forEach((value, idx) => {
+                                    appendToLog(`<div style="padding: 1px 0; color: #495057;">[${idx}] ${value}</div>`);
+                                });
+                                
+                                appendToLog(`<div style="padding: 5px 0; color: #6c757d; font-style: italic;">
+                                    ... ${flatValues.length - 8} more items ...
+                                </div>`);
+                                
+                                flatValues.slice(-3).forEach((value, idx) => {
+                                    const actualIdx = flatValues.length - 3 + idx;
+                                    appendToLog(`<div style="padding: 1px 0; color: #495057;">[${actualIdx}] ${value}</div>`);
+                                });
                             }
+                            appendToLog(`</div>`);
                         }
                     } else if (output.value !== null && output.value !== undefined) {
+                        // Single value display
                         const valueStr = typeof output.value === 'object' ? JSON.stringify(output.value, null, 2) : output.value;
-                        appendToLog(`      💾 Value: <code>${valueStr}</code>`);
+                        appendToLog(`<div style="background: #f8f9fa; border-left: 3px solid #28a745; padding: 8px; margin: 5px 0; font-family: monospace; color: #495057;">
+                            ${valueStr}
+                        </div>`);
                     } else {
-                        appendToLog(`      💾 Value: <em style="color: gray;">(null/undefined)</em>`);
+                        appendToLog(`<div style="color: #6c757d; font-style: italic; padding: 8px;">
+                            (no data)
+                        </div>`);
                     }
+                    
+                    appendToLog(`</div>`);
                 });
             } else {
-                appendToLog(`<br/><strong>📈 Dynamo Node Outputs:</strong> <em style="color: gray;">None captured</em>`);
+                appendToLog(`<div style="color: #6c757d; font-style: italic;">
+                    📊 No node outputs captured
+                </div>`);
             }
             
-            // Display timing information if available
+            // Execution time
             if (info.executionTime) {
-                appendToLog(`<br/><strong>⏱️ Execution Time:</strong> <span style="color: blue;">${info.executionTime}ms</span>`);
+                appendToLog(`<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 14px;">
+                    ⏱️ Execution time: <strong>${info.executionTime}ms</strong>
+                </div>`);
             }
             
-            // Show total summary
-            const outputCount = (info.outputs && info.outputs.length) || 0;
-            const issueCount = (info.issues && info.issues.length) || 0;
-            appendToLog(`<br/><strong>📋 Summary:</strong> ${outputCount} outputs, ${issueCount} issues, Status: ${status}`);
-            
-            appendToLog(`<hr style="margin: 10px 0; border: 1px solid #ddd;">`);
+            appendToLog(`</div>`);
         }
 
         // Event listeners for all buttons - Updated to match reference API paths
