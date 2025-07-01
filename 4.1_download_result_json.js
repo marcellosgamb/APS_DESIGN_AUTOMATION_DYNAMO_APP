@@ -56,40 +56,34 @@ const downloadResultJSONHandler = async (req, res) => {
     try {
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
-        const tokenHeader = await createTokenHeader();
+        const headers = await createTokenHeader();
         
-        // Step 2: Generate signed download URL for result.json
-        const fileName = 'result.json';
-        console.log(`Step 2: Generating signed download URL for: ${fileName}`);
+        // Step 2: Generate signed download URL for result.json (exactly like reference)
+        const RESULT_FILE = 'result.json';
+        console.log(`Step 2: Generating signed download URL for: ${RESULT_FILE}`);
         
-        const signedUrlResponse = await axios.get(
-            `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/${fileName}/signeds3download?minutesExpiration=60`,
-            { headers: tokenHeader }
+        const response = await axios.get(
+            `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/${RESULT_FILE}/signeds3download`,
+            { headers }
         );
         
-        const downloadUrl = signedUrlResponse.data.url;
-        console.log('Step 3: Signed download URL generated successfully');
-        
-        // Step 4: Optionally fetch and parse the JSON content for preview
-        console.log('Step 4: Fetching JSON content for preview');
-        const jsonResponse = await axios.get(downloadUrl);
-        const jsonContent = jsonResponse.data;
-        
+        console.log('✅ Signed download URL generated successfully');
         console.log('Operation completed successfully');
         
-        // Step 5: Send response with download URL and parsed content
-        res.status(200).json({ 
+        // Step 3: Send response (matching reference implementation exactly)
+        res.status(200).json({
             message: 'Download URL generated successfully',
-            downloadUrl: downloadUrl,
-            fileName: fileName
+            downloadUrl: response.data.url,
+            fileName: RESULT_FILE
         });
         
-    } catch (error) {
-        console.log('Operation failed:', error.message);
+    } catch (err) {
+        console.log('Operation failed:', err.message);
+        console.log('Error details:', err.response?.data);
         
-        res.status(error.response?.status || 500).json({
-            error: `Failed to generate download URL for ${fileName}`,
-            details: error.response?.data || error.message
+        res.status(err.response?.status || 500).json({
+            error: `Failed to generate download URL for result.json`,
+            details: err.response?.data || err.message
         });
     }
 };

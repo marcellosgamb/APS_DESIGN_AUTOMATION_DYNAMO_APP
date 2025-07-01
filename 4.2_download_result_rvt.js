@@ -56,45 +56,34 @@ const downloadResultRVTHandler = async (req, res) => {
     try {
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
-        const tokenHeader = await createTokenHeader();
+        const headers = await createTokenHeader();
         
-        // Step 2: Generate signed download URL for result.rvt
-        const fileName = 'result.rvt';
-        console.log(`Step 2: Generating signed download URL for: ${fileName}`);
+        // Step 2: Generate signed download URL for result.rvt (exactly like reference)
+        const RVT_RESULT_FILE = 'result.rvt';
+        console.log(`Step 2: Generating signed download URL for: ${RVT_RESULT_FILE}`);
         
-        const signedUrlResponse = await axios.get(
-            `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/${fileName}/signeds3download?minutesExpiration=60`,
-            { headers: tokenHeader }
+        const response = await axios.get(
+            `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/${RVT_RESULT_FILE}/signeds3download`,
+            { headers }
         );
         
-        const downloadUrl = signedUrlResponse.data.url;
-        console.log('Step 3: Signed download URL generated successfully');
-        
-        // Step 4: Get file details
-        console.log('Step 4: Getting file details');
-        const fileDetailsResponse = await axios.head(
-            `https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}/objects/${fileName}`,
-            { headers: tokenHeader }
-        );
-        
-        const fileSize = fileDetailsResponse.headers['content-length'];
-        const fileSizeMB = (fileSize / 1024 / 1024).toFixed(2);
-        
+        console.log('✅ Signed download URL generated successfully');
         console.log('Operation completed successfully');
         
-        // Step 5: Send response with download URL and file info
-        res.status(200).json({ 
+        // Step 3: Send response (matching reference implementation exactly)
+        res.status(200).json({
             message: 'Download URL generated successfully',
-            downloadUrl: downloadUrl,
-            fileName: fileName
+            downloadUrl: response.data.url,
+            fileName: RVT_RESULT_FILE
         });
         
-    } catch (error) {
-        console.log('Operation failed:', error.message);
+    } catch (err) {
+        console.log('Operation failed:', err.message);
+        console.log('Error details:', err.response?.data);
         
-        res.status(error.response?.status || 500).json({
-            error: `Failed to generate download URL for ${fileName}`,
-            details: error.response?.data || error.message
+        res.status(err.response?.status || 500).json({
+            error: `Failed to generate download URL for result.rvt`,
+            details: err.response?.data || err.message
         });
     }
 };
