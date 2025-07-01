@@ -84,18 +84,9 @@ const downloadResultRVTHandler = async (req, res) => {
         
         // Step 5: Send response with download URL and file info
         res.status(200).json({ 
-            success: true,
-            operation: 'Download Result RVT',
             message: 'Download URL generated successfully',
-            details: {
-                file_name: fileName,
-                download_url: downloadUrl,
-                expires_in_minutes: 60,
-                bucket_name: APS_BUCKET_NAME,
-                file_size_bytes: parseInt(fileSize),
-                file_size_mb: fileSizeMB
-            },
-            timestamp: new Date().toISOString()
+            downloadUrl: downloadUrl,
+            fileName: fileName
         });
         
     } catch (error) {
