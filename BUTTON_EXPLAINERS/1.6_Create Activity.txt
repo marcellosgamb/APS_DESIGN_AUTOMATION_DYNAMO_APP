@@ -1,0 +1,148 @@
+🔄 COMPLETE FLOW - Create/Update Activity Button
+
+🎯 Step 1: Button in HTML
+<button id="btnActivity" class="btn btn-secondary w-100">Create/Update Activity</button>
+This creates a gray button labeled "Create/Update Activity" on the webpage.
+
+⚠️ Step 2: JavaScript Event Handler
+btnActivity.addEventListener('click', (e) => postData('/api/aps/activity', {}, 'Creating Activity...', e.currentTarget));
+When someone presses the button, this code calls postData to send a request to the server.
+
+🧹 Step 3: Clear Log & Disable Buttons
+function clearLogAndDisableButtons(log, clickedButton) {
+    clearLog();
+    if (log) logMessage(log);
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+This function clears the output window, shows "Creating Activity...", and makes all buttons gray/unclickable.
+
+📡 Step 4: Send Request to Server
+async function postData(url, body, log, clickedButton) {
+    clearLogAndDisableButtons(log, clickedButton);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...body, socketId })
+        });
+The browser sends a POST request to "/api/aps/activity" with the socket ID.
+
+🖥️ Step 5: Server Creates Activity Definition
+router.post('/', async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    try {
+        const headers = await getHeaders();
+        const qualifiedActivityId = `${DA_CONFIG.NICKNAME}.${DA_CONFIG.ACTIVITY_NAME}`;
+        
+        io.to(socketId).emit('status', { message: '--- Step: CREATE ACTIVITY ---' });
+        io.to(socketId).emit('status', { message: `Creating Activity: ${qualifiedActivityId}` });
+The server gets authentication and creates a qualified Activity ID using your nickname and activity name.
+
+🔧 Step 6: Activity Configuration
+        const activityData = {
+            id: DA_CONFIG.ACTIVITY_NAME,
+            commandLine: [`$(engine.path)\\\\revitcoreconsole.exe /i "$(args[rvtFile].path)" /al "$(appbundles[${DA_CONFIG.APP_BUNDLE_NAME}].path)"`],
+            parameters: {
+                rvtFile: {
+                    zip: false,
+                    ondemand: false,
+                    verb: "get",
+                    description: "Input Revit model",
+                    required: true,
+                    localName: "$(rvtFile)"
+                },
+                runRequest: {
+                    zip: false,
+                    ondemand: false,
+                    verb: "get",
+                    description: "Input Revit model",
+                    required: false,
+                    localName: "run.json"
+                },
+The server creates an Activity definition that specifies how to run Revit with your AppBundle and what input/output files are expected.
+
+📁 Step 7: Parameter Definitions
+                pythonLibs: {
+                    zip: true,
+                    ondemand: false,
+                    verb: "get",
+                    description: "Python libs",
+                    required: false,
+                    localName: "pythonDependencies"
+                },
+                dynResult: {
+                    zip: false,
+                    ondemand: false,
+                    verb: "put",
+                    description: "Results",
+                    required: false,
+                    localName: "result.json"
+                },
+                packages: {
+                    zip: true,
+                    ondemand: false,
+                    verb: "get",
+                    description: "Dynamo packages",
+                    required: false,
+                    localName: "packages"
+                },
+                rvtResult: {
+                    zip: false,
+                    ondemand: false,
+                    verb: "put",
+                    description: "Results",
+                    required: false,
+                    localName: "result.rvt"
+                }
+            },
+            engine: DA_CONFIG.ENGINE,
+            appbundles: [`${DA_CONFIG.NICKNAME}.${DA_CONFIG.APP_BUNDLE_NAME}+${DA_CONFIG.ACTIVITY_ALIAS}`],
+The Activity defines all the files it can work with: input files (get) like RVT and Python dependencies, and output files (put) like result.json and result.rvt.
+
+🚀 Step 8: Create Activity & Alias
+        const newActivity = await axios.post(`${DA_BASE_URL}/activities`, activityData, { headers });
+        
+        try {
+            const aliasResponse = await axios.post(
+                `${DA_BASE_URL}/activities/${DA_CONFIG.ACTIVITY_NAME}/aliases`,
+                { id: DA_CONFIG.ACTIVITY_ALIAS, version: newActivity.data.version },
+                { headers }
+            );
+        } catch (aliasErr) {
+            if (aliasErr.response && aliasErr.response.status === 409) {
+                await axios.patch(
+                    `${DA_BASE_URL}/activities/${DA_CONFIG.ACTIVITY_NAME}/aliases/${DA_CONFIG.ACTIVITY_ALIAS}`,
+                    { version: newActivity.data.version },
+                    { headers }
+                );
+The server sends the Activity definition to Autodesk, then creates or updates an alias to reference this version.
+
+📱 Step 9: Show Results & Re-enable Buttons
+        res.status(200).json({ 
+            message: 'Activity created successfully',
+            version: newActivity.data.version,
+            alias: DA_CONFIG.ACTIVITY_ALIAS
+        });
+The server sends back success information with the Activity version number.
+
+🎯 What This Accomplishes:
+- Creates an Activity definition in Design Automation
+- Defines the workflow: run Revit with your AppBundle
+- Specifies all input and output file parameters
+- Links the Activity to your AppBundle
+
+📋 Summary for Non-Coders:
+1. User presses "Create/Update Activity" button
+2. All buttons become gray and output log clears
+3. Browser sends request to server
+4. Server creates Activity definition with workflow instructions
+5. Activity specifies how to run Revit with the Dynamo AppBundle
+6. Activity defines what input files it expects and what outputs it creates
+7. Server creates/updates Activity alias for easy reference
+8. Server sends success response
+9. Browser shows response and makes buttons clickable again
+
+An Activity is like a recipe that tells Design Automation how to process your files. It says "take a Revit file and Dynamo script, run them through the Dynamo engine (AppBundle), and give me back the results". It defines the entire workflow for your automation. 

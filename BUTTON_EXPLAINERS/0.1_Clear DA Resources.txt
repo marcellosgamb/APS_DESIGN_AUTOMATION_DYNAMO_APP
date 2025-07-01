@@ -1,0 +1,72 @@
+🔄 COMPLETE FLOW - Clear DA Resources Button
+
+🎯 Step 1: Button in HTML
+<button id="btnClearDa" class="btn btn-danger">Clear DA Resources</button>
+This creates a red button labeled "Clear DA Resources" on the webpage.
+
+⚠️ Step 2: JavaScript Event Handler
+btnClearDa.addEventListener('click', (e) => {
+    if (!confirm('Are you sure you want to delete your Nickname and ALL AppBundles & Activities?')) return;
+    deleteData('/api/aps/account', 'Clearing DA Resources...', e.currentTarget);
+});
+When someone presses the button, this code runs. It shows a confirmation popup asking "Are you sure?". If they cancel, nothing happens. If they confirm, it calls the deleteData function.
+
+🧹 Step 3: Clear Log & Disable Buttons
+function clearLogAndDisableButtons(log, clickedButton) {
+    clearLog();
+    if (log) logMessage(log);
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+This function clears the output window, shows the message "Clearing DA Resources...", and makes all buttons gray/unclickable so the user can't press anything else while this is running.
+
+📡 Step 4: Send Request to Server
+async function deleteData(url, log, clickedButton) {
+    clearLogAndDisableButtons(log, clickedButton);
+    try {
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ socketId })
+        });
+The browser sends a DELETE request to the server at "/api/aps/account" along with a socket ID so the server knows which browser window to send updates to.
+
+🖥️ Step 5: Server Processes the Delete
+router.delete('/', async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    try {
+        const headers = await getHeaders();
+        io.to(socketId).emit('status', { message: '--- Step: CLEAR ACCOUNT (NICKNAME/APPBUNDLES/ACTIVITIES) ---' });
+        io.to(socketId).emit('status', { message: `Deleting Forge App...` });
+        const deleteResponse = await axios.delete(`${DA_BASE_URL}/forgeapps/me`, { headers });
+        io.to(socketId).emit('status', { message: 'Forge App deleted.' });
+        res.status(200).json({ message: 'Account cleared successfully' });
+The server receives the request, gets authentication headers, then contacts Autodesk's API to delete everything. It sends status messages back to the browser window so the user can see what's happening.
+
+📱 Step 6: Show Results & Re-enable Buttons
+        const data = await response.json();
+        logMessage(`--- RESPONSE (Status: ${response.status}) ---`);
+        logMessage(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+    } finally {
+        enableAllButtons(false);
+    }
+The browser receives the server's response and displays it in the output log. Then it makes all the buttons clickable again.
+
+🎯 What Actually Gets Deleted:
+- Your Nickname (from Design Automation)
+- All AppBundles (your custom Dynamo engines)
+- All Activities (your workflow definitions)
+
+📋 Summary for Non-Coders:
+1. User presses red "Clear DA Resources" button
+2. Popup asks "Are you sure you want to delete your Nickname and ALL AppBundles & Activities?"
+3. If confirmed, all buttons become gray and output log clears
+4. Browser sends delete request to server with connection ID
+5. Server gets authentication and contacts Autodesk to delete DA resources
+6. Server sends status updates that appear in the output log
+7. Browser shows final response and makes buttons clickable again
+
+This is like pressing a "factory reset" button that wipes your Design Automation setup clean. It removes your automation configuration but doesn't delete your actual project files.
+

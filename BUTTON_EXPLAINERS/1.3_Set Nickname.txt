@@ -1,0 +1,77 @@
+🔄 COMPLETE FLOW - Set Nickname Button
+
+🎯 Step 1: Button in HTML
+<button id="btnSetNickname" class="btn btn-secondary w-100">Set Nickname</button>
+This creates a gray button labeled "Set Nickname" on the webpage.
+
+⚠️ Step 2: JavaScript Event Handler
+btnSetNickname.addEventListener('click', (e) => postData('/api/aps/nickname', {}, 'Setting Nickname...', e.currentTarget));
+When someone presses the button, this code runs. It calls the postData function to send a request to the server.
+
+🧹 Step 3: Clear Log & Disable Buttons
+function clearLogAndDisableButtons(log, clickedButton) {
+    clearLog();
+    if (log) logMessage(log);
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+This function clears the output window, shows "Setting Nickname...", and makes all buttons gray/unclickable.
+
+📡 Step 4: Send Request to Server
+async function postData(url, body, log, clickedButton) {
+    clearLogAndDisableButtons(log, clickedButton);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...body, socketId })
+        });
+The browser sends a POST request to the server at "/api/aps/nickname" along with the socket ID.
+
+🖥️ Step 5: Server Sets Nickname
+router.post('/', async (req, res, next) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    const headers = await getHeaders();
+    try {
+        io.to(socketId).emit('status', { message: '--- Step: ENSURE NICKNAME ---' });
+        io.to(socketId).emit('status', { message: 'Setting APS Nickname...' });
+        const patchResponse = await axios.patch(`${DA_BASE_URL}/forgeapps/me`, { nickname: DA_CONFIG.NICKNAME }, { headers });
+        io.to(socketId).emit('status', { message: `Nickname set successfully.` });
+        res.status(200).json(patchResponse.data);
+The server sends status updates, gets authentication, then contacts Autodesk's API to set your app's nickname using the value from your config file.
+
+🔧 Step 6: Nickname Configuration
+From config.js:
+DA_CONFIG = {
+    NICKNAME: process.env.APS_NICKNAME || 'my_nicknamenew',
+}
+The nickname value comes from your .env file (APS_NICKNAME) or defaults to 'my_nicknamenew'. This becomes your app's unique identifier in Design Automation.
+
+📱 Step 7: Show Results & Re-enable Buttons
+        const data = await response.json();
+        logMessage(`--- RESPONSE (Status: ${response.status}) ---`);
+        logMessage(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+    } finally {
+        enableAllButtons(false);
+    }
+The browser receives the server's response and displays it in the output log. Then it makes all the buttons clickable again.
+
+🎯 What This Accomplishes:
+- Assigns a unique nickname to your app in Design Automation
+- Uses the nickname value from your .env configuration
+- Required before creating AppBundles and Activities
+- Creates your app's identity in Autodesk's system
+
+📋 Summary for Non-Coders:
+1. User presses "Set Nickname" button
+2. All buttons become gray and output log clears
+3. Browser sends POST request to server
+4. Server sends status updates about setting nickname
+5. Server contacts Autodesk with your configured nickname
+6. Autodesk assigns the nickname to your app credentials
+7. Server sends success confirmation
+8. Browser shows response and makes buttons clickable again
+
+A nickname is like creating a username for your app in Autodesk's Design Automation system. Once set, all your AppBundles and Activities will be prefixed with this nickname (like "my_nicknamenew.DeleteWalls"). This makes your resources unique and prevents conflicts with other users. 

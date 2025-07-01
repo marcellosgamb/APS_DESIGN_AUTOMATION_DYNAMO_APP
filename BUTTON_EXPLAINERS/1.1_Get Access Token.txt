@@ -1,0 +1,92 @@
+🔄 COMPLETE FLOW - Get Access Token Button
+
+🎯 Step 1: Button in HTML
+<button id="btnGetToken" class="btn btn-secondary w-100">Get Access Token</button>
+This creates a gray button labeled "Get Access Token" on the webpage.
+
+⚠️ Step 2: JavaScript Event Handler
+btnGetToken.addEventListener('click', (e) => postData('/api/aps/token', {}, 'Fetching access token...', e.currentTarget));
+When someone presses the button, this code runs. It calls the postData function to send a request to the server.
+
+🧹 Step 3: Clear Log & Disable Buttons
+function clearLogAndDisableButtons(log, clickedButton) {
+    clearLog();
+    if (log) logMessage(log);
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+This function clears the output window, shows the message "Fetching access token...", and makes all buttons gray/unclickable.
+
+📡 Step 4: Send Request to Server
+async function postData(url, body, log, clickedButton) {
+    clearLogAndDisableButtons(log, clickedButton);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...body, socketId })
+        });
+The browser sends a POST request to the server at "/api/aps/token" along with the socket ID.
+
+🖥️ Step 5: Server Gets Token from Autodesk
+router.post('/', async (req, res) => {
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    try {
+        io.to(socketId).emit('status', { message: '--- Step: GET ACCESS TOKEN ---' });
+        const headers = await getHeaders();
+        io.to(socketId).emit('status', { message: '2-legged access token obtained and cached on server.' });
+        res.status(200).json({ message: 'Token obtained successfully' });
+The server sends status updates, then calls getHeaders() which handles getting and caching the authentication token from Autodesk's servers.
+
+🔐 Step 6: Token Authentication Process
+async function getToken() {
+    if (tokenCache && tokenCache.expires_at > Date.now()) {
+        return tokenCache;
+    }
+    const response = await axios.post(
+        AUTH_URL,
+        new URLSearchParams({
+            grant_type: 'client_credentials',
+            scope: 'bucket:create bucket:read bucket:delete data:read data:write code:all'
+        }), {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${Buffer.from(`${APS_CLIENT_ID}:${APS_CLIENT_SECRET}`).toString('base64')}`
+            }
+        }
+    );
+    tokenCache = {
+        access_token: response.data.access_token,
+        expires_at: Date.now() + response.data.expires_in * 1000
+    };
+    return tokenCache;
+This function contacts Autodesk's authentication servers using your Client ID and Secret from the .env file. It gets an access token that allows the app to use Autodesk's APIs. The token is cached so it doesn't need to be requested again until it expires.
+
+📱 Step 7: Show Results & Re-enable Buttons
+        const data = await response.json();
+        logMessage(`--- RESPONSE (Status: ${response.status}) ---`);
+        logMessage(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+    } finally {
+        enableAllButtons(false);
+    }
+The browser receives the server's response and displays it in the output log. Then it makes all the buttons clickable again.
+
+🎯 What This Accomplishes:
+- Authenticates with Autodesk Platform Services
+- Gets an access token that expires after a certain time
+- Caches the token on the server for reuse
+- Required before any other APS operations can work
+
+📋 Summary for Non-Coders:
+1. User presses "Get Access Token" button
+2. All buttons become gray and output log clears
+3. Browser sends request to server
+4. Server sends status update "Getting access token"
+5. Server contacts Autodesk with your app credentials from .env file
+6. Autodesk returns an access token that proves your app is authorized
+7. Server caches the token and sends success message
+8. Browser shows response and makes buttons clickable again
+
+This is like showing your ID card to a security guard. The access token proves to Autodesk that your app is allowed to use their services. Without this token, none of the other operations will work. 

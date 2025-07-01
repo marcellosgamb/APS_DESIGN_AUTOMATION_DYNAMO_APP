@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APS - Design Automation for Dynamo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="header">
+            <img src="https://cdn.autodesk.io/logo/black/stacked.png" alt="Autodesk Platform Services" height="50">
+            <h1>Design Automation for Dynamo</h1>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-4">
+                <div class="step-box">
+                    <h5>0. Cleanup First</h5>
+                    <p><strong>Start fresh by deleting any existing resources.</strong> This prevents conflicts and ensures a clean setup.</p>
+                    <ul class="small text-muted mb-3">
+                        <li><strong>Clear DA Resources:</strong> Deletes AppBundle and Activity from Design Automation</li>
+                        <li><strong>Clear OSS Bucket:</strong> Deletes the Object Storage Service bucket and all files</li>
+                        <li>⚠️ <strong>Safe to run:</strong> These operations won't break anything if resources don't exist</li>
+                    </ul>
+                    <div class="btn-group-vertical btn-block">
+                        <button id="btnClearDa" class="btn btn-danger">Clear DA Resources</button>
+                        <button id="btnClearBucket" class="btn btn-danger">Clear OSS Bucket</button>
+                    </div>
+                </div>
+
+                <div class="step-box">
+                    <h5>1. Setup</h5>
+                    <p><strong>Authenticate and create the required APS resources.</strong> Each sub-step builds on the previous one.</p>
+                    <div class="alert alert-info small mb-3">
+                        📖 <strong>Need help?</strong> Visit the <a href="https://aps.autodesk.com/en/docs/design-automation/v3/tutorials/" target="_blank">APS Design Automation Documentation</a>
+                    </div>
+                    
+                    <!-- Setup Steps -->
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>1. Get Access Token</h6>
+                            <p class="small text-muted mb-2">Authenticates with APS using your Client ID and Secret from your app credentials.</p>
+                            <button id="btnGetToken" class="btn btn-secondary w-100">Get Access Token</button>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>2. Get Nickname</h6>
+                            <p class="small text-muted mb-2">Checks if you already have a Design Automation nickname assigned to your app.</p>
+                            <button id="btnGetNickname" class="btn btn-info w-100">Get Nickname</button>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>3. Set Nickname</h6>
+                            <p class="small text-muted mb-2">Creates a unique nickname for your DA app (required for AppBundle and Activity names).</p>
+                            <button id="btnSetNickname" class="btn btn-secondary w-100">Set Nickname</button>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>4. AppBundle File (.zip)</h6>
+                            <p class="small text-muted mb-2">Select the DynamoRevitDA.zip file containing the Dynamo engine for Revit.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="dynamoRevitDAFile" accept=".zip" placeholder="Usually DynamoRevitDA.zip">
+                            </div>
+                            <small class="text-warning">📁 <strong>File needed:</strong> DynamoRevitDA.zip (contains Dynamo runtime for cloud execution)</small>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>5. Upload AppBundle</h6>
+                            <p class="small text-muted mb-2">Creates the AppBundle resource that contains the Dynamo engine for processing.</p>
+                            <button id="btnAppBundle" class="btn btn-secondary w-100">Create/Update AppBundle</button>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>6. Create Activity</h6>
+                            <p class="small text-muted mb-2">Defines the workflow: how Dynamo processes your files using the AppBundle.</p>
+                            <button id="btnActivity" class="btn btn-secondary w-100">Create/Update Activity</button>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>7. Create OSS Bucket</h6>
+                            <p class="small text-muted mb-2">Creates cloud storage bucket for uploading files and downloading results.</p>
+                            <button id="btnCreateBucket" class="btn btn-secondary w-100">Create OSS Bucket</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-box">
+                    <h5>2. Upload Files</h5>
+                    <p><strong>Upload your project files to the cloud storage bucket.</strong> Follow the exact order for best results.</p>
+                    <div class="alert alert-warning small mb-3">
+                        ⚠️ <strong>Important:</strong> Complete Step 1 first! You need the OSS bucket created before uploading files.
+                    </div>
+                    
+                    <!-- Python Dependencies Upload -->
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>1. Python Dependencies (.zip)</h6>
+                            <p class="small text-muted mb-2">Upload Python packages if your Dynamo script uses Python nodes (CPython3 not supported).</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="pythonFile" accept=".zip">
+                            </div>
+                            <button type="button" class="btn btn-info btn-sm w-100" id="btnUploadPython">Upload Python Dependencies</button>
+                        </div>
+                    </div>
+
+                    <!-- Revit File Upload -->
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>2. Revit File (.rvt)</h6>
+                            <p class="small text-muted mb-2">Upload the Revit model that Dynamo will process. This is your input file.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="rvtFile" accept=".rvt">
+                            </div>
+                            <small class="text-warning mb-2 d-block"><strong>📝 Required:</strong> Rename your RVT file to "run.rvt" before uploading</small>
+                            <button type="button" class="btn btn-info btn-sm w-100 mb-2" id="btnUploadRvt">Upload Revit File</button>
+                            <button type="button" class="btn btn-success btn-sm w-100" id="btnViewUploadedModel" disabled>View Uploaded Revit Model</button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamo File Upload -->
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>3. Dynamo File (.dyn)</h6>
+                            <p class="small text-muted mb-2">Upload your Dynamo script (.dyn file) that defines the automation workflow.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="dynFile" accept=".dyn">
+                            </div>
+                            <small class="text-warning mb-2 d-block"><strong>📝 Required:</strong> Rename your Dynamo file to "run.dyn" before uploading</small>
+                            <small class="text-info mb-2 d-block"><strong>💡 Tip:</strong> Use built-in Dynamo nodes only. CPython3 nodes are not supported.</small>
+                            <button type="button" class="btn btn-info btn-sm w-100" id="btnUploadDyn">Upload Dynamo File</button>
+                        </div>
+                    </div>
+
+                    <!-- JSON File Upload -->
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>4. JSON File (run.json)</h6>
+                            <p class="small text-muted mb-2">Convert your .dyn file to JSON format (required by Design Automation), then upload it.</p>
+                            <div class="mb-2">
+                                <textarea class="form-control" id="jsonContent" rows="4" placeholder="JSON content will appear here after conversion..." readonly></textarea>
+                            </div>
+                            <div class="btn-group w-100 mb-2">
+                                <button type="button" class="btn btn-warning btn-sm" id="btnConvertDynToJson">Convert Dynamo File (Step 3) to JSON</button>
+                                <button type="button" class="btn btn-info btn-sm" id="btnUploadJson" disabled>Upload JSON to Bucket</button>
+                            </div>
+                            <small class="text-info mb-2 d-block"><strong>🔄 Process:</strong> First convert, then upload the JSON version</small>
+                        </div>
+                    </div>
+
+                    <!-- Packages Upload (Optional) -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6>5. Packages (.zip) - OPTIONAL</h6>
+                            <p class="small text-muted mb-2">Upload custom Dynamo packages if your script uses third-party nodes.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="packagesFile" accept=".zip">
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm w-100" id="btnUploadPackages">Upload Packages (Optional)</button>
+                            <small class="text-muted mb-2 d-block"><strong>ℹ️ Note:</strong> Skip this if you only use built-in Dynamo nodes</small>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="step-box">
+                    <h5>3. Execute</h5>
+                    <p><strong>Run your Dynamo script in the cloud!</strong> This processes your Revit file using the uploaded Dynamo workflow.</p>
+                    <div class="alert alert-success small mb-3">
+                        🚀 <strong>Ready to run?</strong> Make sure you've completed Steps 1 and 2 first.
+                    </div>
+                    <ul class="small text-muted mb-3">
+                        <li><strong>What happens:</strong> Design Automation executes your Dynamo script on the Revit file</li>
+                        <li><strong>Duration:</strong> Usually takes 30-120 seconds depending on script complexity</li>
+                        <li><strong>Status:</strong> Watch the output log for real-time progress updates</li>
+                    </ul>
+                    <!-- Run Workitem -->
+                    <button type="button" class="btn btn-success w-100" id="btnWorkitem" disabled>Run Workitem</button>
+                </div>
+
+                <div class="step-box">
+                    <h5>4. Download Results</h5>
+                    <p><strong>Get your processed files and execution report.</strong> Available after successful workitem completion.</p>
+                    <div class="alert alert-info small mb-3">
+                        📊 <strong>What you get:</strong> Modified Revit file + detailed execution report with captured outputs
+                    </div>
+                    <ul class="small text-muted mb-3">
+                        <li><strong>Result Report (JSON):</strong> Shows info from your Dynamo script output nodes or nodes designated "as output"</li>
+                        <li><strong>Result Revit File:</strong> Your original RVT file with all the changes applied</li>
+                        <li><strong>View Result Model:</strong> Preview the modified Revit model in the browser</li>
+                    </ul>
+                    <div class="btn-group-vertical btn-block">
+                        <button id="btnDownloadResultJson" class="btn btn-primary" disabled>Download Result Report (JSON)</button>
+                        <button id="btnDownloadResultRvt" class="btn btn-primary" disabled>Download Result Revit File</button>
+                        <button id="btnViewResultModel" class="btn btn-success" disabled>View Result Model</button>
+                    </div>
+                </div>
+
+
+            </div>
+            <div class="col-sm-8">
+                <div class="row">
+                    <div class="col-12">
+                        <h5>Output Log</h5>
+                        <div id="outputLog" class="log-box">
+                            <p>Welcome! Click the buttons on the left to start the process.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+
+</html> 

@@ -1,0 +1,109 @@
+🔄 COMPLETE FLOW - View Result Model Button
+
+🎯 Step 1: Button in HTML
+<button id="btnViewResultModel" class="btn btn-success" disabled>View Result Model</button>
+This creates a green button labeled "View Result Model" on the webpage. It starts disabled until a workitem completes and the result URN is obtained.
+
+⚠️ Step 2: JavaScript Event Handler
+btnViewResultModel.addEventListener('click', (e) => {
+    if (!uploadedFiles.resultUrn) {
+        return logMessage('No result model URN available. Please run workitem first.');
+    }
+    openViewerWindow(uploadedFiles.resultUrn, 'Result Model (After)');
+    logMessage('Opening result model in new viewer window...');
+});
+When someone presses the button, this code checks if a result model URN is available. If not, it shows an error. If available, it opens a viewer window.
+
+🧹 Step 3: URN Retrieval After Workitem
+When a workitem completes successfully, this code runs:
+if (url === '/api/aps/workitem' && response.ok && data.status === 'success') {
+    btnDownloadResultJson.disabled = false;
+    btnDownloadResultRvt.disabled = false;
+    logMessage('Download buttons are now enabled!');
+    
+    getResultUrn();
+}
+After successful workitem completion, the browser calls getResultUrn() to find and prepare the result.rvt file for viewing.
+
+📡 Step 4: Get Result URN Process
+async function getResultUrn() {
+    try {
+        logMessage('Getting result.rvt URN for viewer...');
+        const response = await fetch('/api/models');
+        const models = await response.json();
+        
+        const resultModel = models.find(model => model.name === 'result.rvt');
+        if (resultModel) {
+            uploadedFiles.resultUrn = resultModel.urn;
+            btnViewResultModel.disabled = false;
+            logMessage(`Result model URN obtained: ${resultModel.urn}`);
+            logMessage('You can now view the result model!');
+        } else {
+            logMessage('result.rvt not found in bucket. It may take a moment to appear.');
+            setTimeout(getResultUrn, 3000);
+        }
+    } catch (error) {
+        logMessage(`Error getting result URN: ${error.message}`);
+    }
+}
+This function searches for result.rvt in the bucket, gets its URN for the viewer, and enables the button. If not found, it retries after 3 seconds.
+
+🖥️ Step 5: Server Lists Models
+router.get('/', async (req, res) => {
+    try {
+        const objects = await listObjects(DA_CONFIG.BUCKET_NAME);
+        const models = objects
+            .filter(obj => obj.objectKey.toLowerCase().endsWith('.rvt'))
+            .map(obj => ({
+                name: obj.objectKey,
+                urn: urnify(obj.objectId),
+                objectId: obj.objectId
+            }));
+        
+        res.json(models);
+    } catch (err) {
+        res.status(500).json({ 
+            error: 'Failed to list models',
+            details: err.response?.data || err.message 
+        });
+    }
+The server lists all objects in the bucket, filters for .rvt files, and creates URNs for each model found.
+
+🔧 Step 6: URN Creation and Translation
+function urnify(objectId) {
+    return Buffer.from(objectId).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+The URN is created from the result.rvt object ID. The file should automatically start translation when it's created by the workitem.
+
+📱 Step 7: Open Viewer Window
+function openViewerWindow(urn, modelName) {
+    const viewerUrl = `/viewer.html#${urn}`;
+    const windowFeatures = 'width=1200,height=800,scrollbars=yes,resizable=yes';
+    window.open(viewerUrl, `viewer_${urn}`, windowFeatures);
+}
+This function opens a new browser window/tab with the Autodesk Viewer loaded with the result model's URN.
+
+🎯 Step 8: Model Comparison
+Users can now have two viewer windows open:
+1. Original model (from "View Uploaded Revit Model" button)
+2. Result model (from "View Result Model" button)
+This allows side-by-side comparison of before and after states.
+
+🎯 What This Accomplishes:
+- Opens the processed Revit model in Autodesk Viewer
+- Shows the "after" state with all Dynamo changes applied
+- Allows 3D navigation and exploration of the modified model
+- Enables visual comparison with the original model
+- Uses web-based viewer (no Revit installation required)
+
+📋 Summary for Non-Coders:
+1. Workitem completes successfully and generates result.rvt file
+2. Browser automatically searches for result.rvt in the bucket
+3. Browser gets URN for result.rvt and enables "View Result Model" button
+4. User presses "View Result Model" button
+5. Browser checks if result URN is available
+6. Browser opens new window with Autodesk Viewer
+7. Viewer loads the processed Revit model using the URN
+8. User can navigate, zoom, and explore the modified 3D model
+
+The result model shows your Revit file after your Dynamo script has run and made all its changes. You can compare this with the original model to see exactly what your automation accomplished - elements that were added, deleted, moved, or modified are all visible in the 3D viewer. 

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APS - Design Automation for Dynamo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .header {
+            background: linear-gradient(135deg, #0085CA 0%, #005A8B 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 300;
+        }
+        
+        .step-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .step-box h5 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-bottom: 2px solid #0085CA;
+            padding-bottom: 8px;
+        }
+        
+        .card {
+            border: 1px solid #dee2e6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-body h6 {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .log-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            scroll-behavior: smooth;
+            overflow-anchor: none;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="header">
+            <img src="https://cdn.autodesk.io/logo/black/stacked.png" alt="Autodesk Platform Services" height="50" style="filter: brightness(0) invert(1);">
+            <h1>Design Automation for Dynamo</h1>
+            <p class="mb-0" style="opacity: 0.9;">Autodesk Platform Services</p>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-4">
+                <!-- Cleanup -->
+                <div class="step-box">
+                    <h5>0. Cleanup First</h5>
+                    <p><strong>Start fresh by deleting any existing resources.</strong> This prevents conflicts and ensures a clean setup.</p>
+                    <div class="row mb-2">
+                        <div class="col-8">
+                            <button id="btnClearDA" class="btn btn-danger w-100">Clear DA Resources</button>
+                        </div>
+                        <div class="col-4">
+                            <button onclick="viewSourceCode('0.1_clear_da_resources.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-8">
+                            <button id="btnClearBucket" class="btn btn-danger w-100">Clear OSS Bucket</button>
+                        </div>
+                        <div class="col-4">
+                            <button onclick="viewSourceCode('0.2_clear_oss_bucket.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setup -->
+                <div class="step-box">
+                    <h5>1. Setup</h5>
+                    <p><strong>Authenticate and create the required APS resources.</strong> Each sub-step builds on the previous one.</p>
+                    
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>1. Get Access Token</h6>
+                            <p class="small text-muted mb-2">Authenticates with APS using your Client ID and Secret.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnGetToken" class="btn btn-secondary w-100">Get Access Token</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.1_get_access_token.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>2. Get Nickname</h6>
+                            <p class="small text-muted mb-2">Checks if you already have a Design Automation nickname assigned.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnGetNickname" class="btn btn-info w-100">Get Nickname</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.2_get_nickname.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>3. Set Nickname</h6>
+                            <p class="small text-muted mb-2">Creates a unique nickname for your DA app.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnSetNickname" class="btn btn-secondary w-100">Set Nickname</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.3_set_nickname.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>4. AppBundle File (.zip)</h6>
+                            <p class="small text-muted mb-2">Select the DynamoRevitDA.zip file containing the Dynamo engine and upload it.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="appBundleFile" accept=".zip">
+                            </div>
+                            <small class="text-warning mb-2 d-block">📁 <strong>File needed:</strong> DynamoRevitDA.zip</small>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadAppBundle" class="btn btn-secondary w-100">Create/Update AppBundle</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.5_upload_appbundle.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>5. Create Activity</h6>
+                            <p class="small text-muted mb-2">Defines the workflow: how Dynamo processes your files.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnCreateActivity" class="btn btn-secondary w-100">Create/Update Activity</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.6_create_activity.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>6. Create OSS Bucket</h6>
+                            <p class="small text-muted mb-2">Creates cloud storage for your files.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnCreateBucket" class="btn btn-secondary w-100">Create OSS Bucket</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('1.7_create_oss_bucket.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Files -->
+                <div class="step-box">
+                    <h5>2. Upload Files</h5>
+                    <p><strong>Upload your files to the cloud storage.</strong> All files are required for processing.</p>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>1. Python Dependencies</h6>
+                            <p class="small text-muted mb-2">Upload the pythonDependencies.zip file.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="pythonFile" accept=".zip">
+                            </div>
+                            <small class="text-warning mb-2 d-block">📁 <strong>File needed:</strong> pythonDependencies.zip</small>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadPython" class="btn btn-primary w-100">Upload Python Dependencies</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.5_upload_python_dependencies.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>2. Revit File</h6>
+                            <p class="small text-muted mb-2">Upload your Revit file (will be renamed to run.rvt).</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="rvtFile" accept=".rvt">
+                            </div>
+                            <small class="text-warning mb-2 d-block">📁 <strong>File type:</strong> .rvt (Revit files)</small>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadRvt" class="btn btn-primary w-100">Upload Revit File</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.1_upload_revit_file.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>3. Dynamo Script</h6>
+                            <p class="small text-muted mb-2">Upload your Dynamo script (will be renamed to run.dyn).</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="dynFile" accept=".dyn">
+                            </div>
+                            <small class="text-warning mb-2 d-block">📁 <strong>File type:</strong> .dyn (Dynamo files)</small>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadDyn" class="btn btn-primary w-100">Upload Dynamo Script</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.2_upload_dynamo_file.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>4. Convert to JSON</h6>
+                            <p class="small text-muted mb-2">Converts your Dynamo script to JSON format required by DA.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnConvertJson" class="btn btn-primary w-100">Convert Dynamo to JSON</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.3_convert_dynamo_to_json.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>5. Upload JSON</h6>
+                            <p class="small text-muted mb-2">Uploads the converted JSON to cloud storage.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadJson" class="btn btn-primary w-100">Upload JSON to Bucket</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.4_upload_json_file.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>6. Packages (Optional)</h6>
+                            <p class="small text-muted mb-2">Upload custom Dynamo packages if needed.</p>
+                            <div class="mb-2">
+                                <input class="form-control" type="file" id="packagesFile" accept=".zip">
+                            </div>
+                            <small class="text-info mb-2 d-block">📦 <strong>Optional:</strong> Custom packages.zip</small>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnUploadPackages" class="btn btn-info w-100">Upload Packages</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('2.6_upload_packages.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execute -->
+                <div class="step-box">
+                    <h5>3. Execute</h5>
+                    <p><strong>Run your Dynamo script on the Revit file in the cloud.</strong></p>
+                    <div class="row">
+                        <div class="col-8">
+                            <button id="btnRunWorkitem" class="btn btn-success w-100" style="font-size: 1.1rem; font-weight: bold;">▶️ Run Workitem</button>
+                        </div>
+                        <div class="col-4">
+                            <button onclick="viewSourceCode('3.1_run_workitem.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Results -->
+                <div class="step-box">
+                    <h5>4. Download Results</h5>
+                    <p><strong>Download the processed files.</strong> Available after successful execution.</p>
+                    
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>Result Report (JSON)</h6>
+                            <p class="small text-muted mb-2">Contains execution details and outputs.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnDownloadJson" class="btn btn-success w-100">Download Result JSON</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('4.1_download_result_json.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6>Result Revit File</h6>
+                            <p class="small text-muted mb-2">Your modified Revit file with changes applied.</p>
+                            <div class="row">
+                                <div class="col-8">
+                                    <button id="btnDownloadRvt" class="btn btn-success w-100">Download Result RVT</button>
+                                </div>
+                                <div class="col-4">
+                                    <button onclick="viewSourceCode('4.2_download_result_rvt.js')" class="btn btn-outline-secondary btn-sm w-100">📄 See Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-8">
+                <div class="step-box">
+                    <h5>📊 Output Log</h5>
+                    <div id="outputLog" class="log-box">Ready to start! Click any button to begin...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get server URL dynamically (no hardcoded localhost:8080)
+        function getServerUrl() {
+            return window.location.origin;
+        }
+
+        // Enhanced function to view source code in new window
+        function viewSourceCode(filename) {
+            const serverUrl = getServerUrl();
+            const codeWindow = window.open('', '_blank', 'width=1000,height=700,scrollbars=yes,resizable=yes');
+            
+            codeWindow.document.write(`
+                <html>
+                <head>
+                    <title>Source Code: ${filename}</title>
+                    <style>
+                        body { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; margin: 20px; background: #f8f9fa; }
+                        .header { background: #007bff; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                        .code-container { background: white; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px; white-space: pre-wrap; line-height: 1.4; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>📄 Source Code: ${filename}</h2>
+                        <p>Educational view of the complete implementation</p>
+                    </div>
+                    <div class="code-container">Loading...</div>
+                </body>
+                </html>
+            `);
+
+            fetch(`${serverUrl}/view-source/${filename}`)
+                .then(response => response.text())
+                .then(code => {
+                    const codeContainer = codeWindow.document.querySelector('.code-container');
+                    codeContainer.textContent = code;
+                })
+                .catch(error => {
+                    const codeContainer = codeWindow.document.querySelector('.code-container');
+                    codeContainer.textContent = `Error loading source code: ${error.message}`;
+                });
+        }
+
+        // Utility function to append messages to the log
+        function appendToLog(message) {
+            const outputLog = document.getElementById('outputLog');
+            const timestamp = new Date().toLocaleTimeString();
+            outputLog.textContent += `[${timestamp}] ${message}\n`;
+            outputLog.scrollTop = outputLog.scrollHeight;
+        }
+
+        // Generic function to make API calls
+        async function makeApiCall(endpoint, method = 'GET', formData = null) {
+            const serverUrl = getServerUrl();
+            
+            try {
+                appendToLog(`Making ${method} request to ${endpoint}...`);
+                
+                const options = {
+                    method: method,
+                    headers: {}
+                };
+                
+                if (formData) {
+                    options.body = formData;
+                } else if (method === 'POST') {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify({});
+                }
+                
+                const response = await fetch(`${serverUrl}${endpoint}`, options);
+                const data = await response.json();
+                
+                if (data.success) {
+                    appendToLog(`✅ ${data.operation}: ${data.message}`);
+                    if (data.details) {
+                        if (typeof data.details === 'string') {
+                            appendToLog(`   Details: ${data.details}`);
+                        } else {
+                            appendToLog(`   Details: ${JSON.stringify(data.details, null, 2)}`);
+                        }
+                    }
+                } else {
+                    appendToLog(`❌ ${data.operation}: ${data.error}`);
+                    if (data.details) {
+                        appendToLog(`   Error details: ${JSON.stringify(data.details, null, 2)}`);
+                    }
+                }
+                
+                return data;
+            } catch (error) {
+                appendToLog(`❌ Network error: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Event listeners for all buttons
+        document.getElementById('btnClearDA').addEventListener('click', () => makeApiCall('/clear-da-resources', 'DELETE'));
+        document.getElementById('btnClearBucket').addEventListener('click', () => makeApiCall('/clear-oss-bucket', 'DELETE'));
+        document.getElementById('btnGetToken').addEventListener('click', () => makeApiCall('/get-access-token', 'POST'));
+        document.getElementById('btnGetNickname').addEventListener('click', () => makeApiCall('/get-nickname', 'GET'));
+        document.getElementById('btnSetNickname').addEventListener('click', () => makeApiCall('/set-nickname', 'POST'));
+        document.getElementById('btnCreateActivity').addEventListener('click', () => makeApiCall('/create-activity', 'POST'));
+        document.getElementById('btnCreateBucket').addEventListener('click', () => makeApiCall('/create-oss-bucket', 'POST'));
+        document.getElementById('btnConvertJson').addEventListener('click', () => makeApiCall('/convert-dynamo-to-json', 'POST'));
+        document.getElementById('btnUploadJson').addEventListener('click', () => makeApiCall('/upload-json-file', 'POST'));
+        document.getElementById('btnRunWorkitem').addEventListener('click', () => makeApiCall('/run-workitem', 'POST'));
+        document.getElementById('btnDownloadJson').addEventListener('click', () => {
+            const serverUrl = getServerUrl();
+            window.open(`${serverUrl}/download-result-json`, '_blank');
+        });
+        document.getElementById('btnDownloadRvt').addEventListener('click', () => {
+            const serverUrl = getServerUrl();
+            window.open(`${serverUrl}/download-result-rvt`, '_blank');
+        });
+
+        // File upload handlers
+        document.getElementById('btnUploadAppBundle').addEventListener('click', () => {
+            const fileInput = document.getElementById('appBundleFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select the DynamoRevitDA.zip file first');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('appBundleFile', fileInput.files[0]);
+            makeApiCall('/upload-appbundle', 'POST', formData);
+        });
+
+        document.getElementById('btnUploadPython').addEventListener('click', () => {
+            const fileInput = document.getElementById('pythonFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select the pythonDependencies.zip file first');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('pythonFile', fileInput.files[0]);
+            makeApiCall('/upload-python-dependencies', 'POST', formData);
+        });
+
+        document.getElementById('btnUploadRvt').addEventListener('click', () => {
+            const fileInput = document.getElementById('rvtFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select a Revit (.rvt) file first');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('rvtFile', fileInput.files[0]);
+            makeApiCall('/upload-revit-file', 'POST', formData);
+        });
+
+        document.getElementById('btnUploadDyn').addEventListener('click', () => {
+            const fileInput = document.getElementById('dynFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select a Dynamo (.dyn) file first');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('dynFile', fileInput.files[0]);
+            makeApiCall('/upload-dynamo-file', 'POST', formData);
+        });
+
+        document.getElementById('btnUploadPackages').addEventListener('click', () => {
+            const fileInput = document.getElementById('packagesFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select a packages.zip file first');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('packagesFile', fileInput.files[0]);
+            makeApiCall('/upload-packages', 'POST', formData);
+        });
+
+        // Initialize
+        appendToLog('🚀 Design Automation for Dynamo - Ready!');
+        appendToLog('💡 Click "📄 See Code" buttons to view the implementation');
+    </script>
+</body>
+
+</html> 

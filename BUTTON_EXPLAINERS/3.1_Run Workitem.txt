@@ -1,0 +1,158 @@
+🔄 COMPLETE FLOW - Run Workitem Button
+
+🎯 Step 1: Button in HTML
+<button type="button" class="btn btn-success w-100" id="btnWorkitem" disabled>Run Workitem</button>
+This creates a green button labeled "Run Workitem" on the webpage. It starts disabled until required files are uploaded.
+
+⚠️ Step 2: JavaScript Event Handler
+btnWorkitem.addEventListener('click', (e) => {
+    if (!uploadedFiles.rvt) {
+        return logMessage('Error: No RVT file has been uploaded.');
+    }
+    if (!uploadedFiles.json) {
+        return logMessage('Error: No JSON file has been uploaded.');
+    }
+    const body = { 
+        socketId, 
+        rvtFileName: uploadedFiles.rvt,
+        hasPackages: !!uploadedFiles.packages
+    };
+    postData('/api/aps/workitem', body, 'Starting workitem...', e.currentTarget);
+});
+When someone presses the button, this code checks that both RVT and JSON files have been uploaded. If not, it shows error messages. If both exist, it calls postData with the file information.
+
+🧹 Step 3: Clear Log & Disable Buttons
+function clearLogAndDisableButtons(log, clickedButton) {
+    clearLog();
+    if (log) logMessage(log);
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+    });
+}
+This function clears the output window, shows "Starting workitem...", and makes all buttons gray/unclickable.
+
+📡 Step 4: Send Request to Server
+async function postData(url, body, log, clickedButton) {
+    clearLogAndDisableButtons(log, clickedButton);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...body, socketId })
+        });
+The browser sends a POST request to "/api/aps/workitem" with the socket ID, RVT filename, and package information.
+
+🖥️ Step 5: Server Validates Files
+router.post('/', async (req, res) => {
+    const { socketId, rvtFileName, hasPackages } = req.body;
+    const io = req.app.get('io');
+    
+    try {
+        if (!rvtFileName) {
+            return res.status(400).json({ error: 'rvtFileName is required' });
+        }
+        
+        if (rvtFileName !== 'run.rvt') {
+            return res.status(400).json({ 
+                error: 'RVT file must be named "run.rvt". Please rename your file and upload again.' 
+            });
+        }
+The server validates that an RVT filename was provided and that it's named "run.rvt" as required.
+
+🔧 Step 6: Check for Optional Packages
+        const packagesExists = await checkFileExists(headers, DA_CONFIG.BUCKET_NAME, PACKAGES_FILE);
+        io.to(socketId).emit('status', { message: `Packages file exists: ${packagesExists}` });
+The server checks if an optional packages.zip file exists in the bucket for custom Dynamo nodes.
+
+📦 Step 7: Create Workitem Definition
+        const workitemData = {
+            activityId: `${DA_CONFIG.NICKNAME}.${DA_CONFIG.ACTIVITY_NAME}+${DA_CONFIG.ACTIVITY_ALIAS}`,
+            arguments: {
+                rvtFile: {
+                    url: `urn:adsk.objects:os.object:${DA_CONFIG.BUCKET_NAME}/${rvtFileName}`,
+                    verb: "get",
+                    headers: { Authorization: headers.Authorization }
+                },
+                runRequest: {
+                    url: `urn:adsk.objects:os.object:${DA_CONFIG.BUCKET_NAME}/${RUN_REQ_FILE}`,
+                    verb: "get",
+                    headers: { Authorization: headers.Authorization }
+                },
+                pythonLibs: {
+                    url: `urn:adsk.objects:os.object:${DA_CONFIG.BUCKET_NAME}/${PYTHON_FILE}`,
+                    verb: "get",
+                    headers: { Authorization: headers.Authorization }
+                },
+                dynResult: {
+                    url: `urn:adsk.objects:os.object:${DA_CONFIG.BUCKET_NAME}/${RESULT_FILE}`,
+                    verb: "put",
+                    headers: { Authorization: headers.Authorization }
+                },
+                rvtResult: {
+                    url: `urn:adsk.objects:os.object:${DA_CONFIG.BUCKET_NAME}/${RVT_RESULT_FILE}`,
+                    verb: "put",
+                    headers: { Authorization: headers.Authorization }
+                }
+            }
+        };
+The server creates a workitem definition that specifies which Activity to run and maps input files (get) and output files (put) with their cloud storage locations.
+
+🚀 Step 8: Submit Workitem & Poll Status
+        const workitemResponse = await axios.post(`${DA_BASE_URL}/workitems`, workitemData, { headers });
+        const workitemId = workitemResponse.data.id;
+        
+        let status = 'pending';
+        let attempts = 0;
+        const maxAttempts = 60;
+        
+        while (status === 'pending' || status === 'inprogress') {
+            if (attempts >= maxAttempts) {
+                throw new Error('Workitem timed out after 5 minutes');
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            const statusResponse = await axios.get(`${DA_BASE_URL}/workitems/${workitemId}`, { headers });
+            status = statusResponse.data.status;
+            
+            io.to(socketId).emit('status', { message: `Workitem status: ${status}` });
+            attempts++;
+        }
+The server submits the workitem to Design Automation and polls its status every 5 seconds until it completes (success/failure) or times out after 5 minutes.
+
+📱 Step 9: Handle Completion & Enable Downloads
+        if (status === 'success') {
+            io.to(socketId).emit('status', { message: 'Workitem completed successfully!' });
+            res.status(200).json({ 
+                message: 'Workitem completed successfully',
+                workitemId: workitemId,
+                status: status,
+                resultFile: RESULT_FILE
+            });
+            
+            if (url === '/api/aps/workitem' && response.ok && data.status === 'success') {
+                btnDownloadResultJson.disabled = false;
+                btnDownloadResultRvt.disabled = false;
+                getResultUrn();
+            }
+When the workitem succeeds, the server sends success response and the browser enables download buttons and gets the result model URN for viewing.
+
+🎯 What This Accomplishes:
+- Executes your Dynamo script on the Revit file in Autodesk's cloud
+- Processes all input files (RVT, JSON, Python dependencies, packages)
+- Generates output files (result.json with execution details, result.rvt with changes)
+- Polls execution status until completion
+- Enables download and viewing buttons upon success
+
+📋 Summary for Non-Coders:
+1. User presses "Run Workitem" button (enabled after uploading RVT and JSON files)
+2. Browser checks both required files are uploaded, shows error if not
+3. All buttons become gray and output log clears
+4. Browser sends workitem request with file information to server
+5. Server validates RVT filename and checks for optional packages
+6. Server creates workitem definition linking Activity with input/output files
+7. Server submits workitem to Design Automation and gets workitem ID
+8. Server polls workitem status every 5 seconds, showing updates in real-time
+9. When complete, server reports success/failure and enables result downloads
+
+This is the main execution step where your Dynamo automation actually runs in the cloud. Design Automation takes your uploaded files, runs your Dynamo script on the Revit model using the AppBundle and Activity you configured, then generates result files you can download. 

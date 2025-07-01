@@ -1,0 +1,131 @@
+🔄 COMPLETE FLOW - Download Result Report (JSON) Button
+
+🎯 Step 1: Button in HTML
+<button id="btnDownloadResultJson" class="btn btn-primary" disabled>Download Result Report (JSON)</button>
+This creates a blue button labeled "Download Result Report (JSON)" on the webpage. It starts disabled until a workitem completes successfully.
+
+⚠️ Step 2: JavaScript Event Handler
+btnDownloadResultJson.addEventListener('click', (e) => downloadFile('result-json', e.currentTarget));
+When someone presses the button, this code calls the downloadFile function with 'result-json' as the file type.
+
+🧹 Step 3: Clear Log & Disable Buttons & Start Download
+async function downloadFile(fileType, clickedButton) {
+    clearLogAndDisableButtons(`Generating download URL for ${fileType}...`, clickedButton);
+    try {
+        const response = await fetch(`/api/aps/upload/download/${fileType}`);
+        const data = await response.json();
+        logMessage(`--- RESPONSE (Status: ${response.status}) ---`);
+        logMessage(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+This function clears the output, disables buttons, and sends a GET request to the server to generate a download URL for the result.json file.
+
+📡 Step 4: Send Request to Server
+The browser sends a GET request to "/api/aps/upload/download/result-json" to get a signed download URL.
+
+🖥️ Step 5: Server Generates Download URL
+router.get('/download/result-json', async (req, res) => {
+    try {
+        const headers = await getHeaders();
+        
+        const response = await axios.get(
+            `${OSS_BASE_URL}/buckets/${DA_CONFIG.BUCKET_NAME}/objects/${RESULT_FILE}/signeds3download`,
+            { headers }
+        );
+        
+        res.status(200).json({
+            message: 'Download URL generated successfully',
+            downloadUrl: response.data.url,
+            fileName: RESULT_FILE
+        });
+The server gets authentication headers and requests a signed download URL from Autodesk's cloud storage for the result.json file.
+
+🔧 Step 6: Parse and Display Dynamo Results
+        if (fileType === 'result-json' && data.downloadUrl) {
+            try {
+                const resultResponse = await fetch(data.downloadUrl);
+                const resultData = await resultResponse.json();
+                displayDynamoOutputs(resultData);
+            } catch (err) {
+                logMessage(`Could not parse result.json for display: ${err.message}`);
+            }
+        }
+If downloading the JSON file, the browser also fetches the file content and displays the Dynamo execution results in a readable format.
+
+📊 Step 7: Display Dynamo Outputs
+function displayDynamoOutputs(resultData) {
+    logMessage(`<br/>--- DYNAMO EXECUTION RESULTS ---`);
+    
+    if (!resultData || !resultData.info) {
+        logMessage('No execution info found in result.json');
+        return;
+    }
+    
+    const info = resultData.info;
+    
+    logMessage(`<strong>Status:</strong> ${info.status || 'Unknown'}`);
+    
+    if (info.issues && info.issues.length > 0) {
+        logMessage(`<strong>Issues:</strong>`);
+        info.issues.forEach((issue, index) => {
+            logMessage(`  ${index + 1}. ${issue}`);
+        });
+    } else {
+        logMessage(`<strong>Issues:</strong> None`);
+    }
+    
+    if (info.outputs && info.outputs.length > 0) {
+        logMessage(`<br/><strong>Captured Outputs:</strong>`);
+        info.outputs.forEach((output, index) => {
+            logMessage(`<br/><strong>Output ${index + 1}: ${output.name}</strong>`);
+            logMessage(`  Type: ${output.type || 'Unknown'}`);
+            
+            if (output.value && Array.isArray(output.value)) {
+                const flatValues = output.value.flat();
+                logMessage(`  Values: ${flatValues.length} items`);
+                
+                if (flatValues.length <= 20) {
+                    flatValues.forEach((val, i) => {
+                        logMessage(`    ${i + 1}. ${val}`);
+                    });
+                } else {
+                    flatValues.slice(0, 10).forEach((val, i) => {
+                        logMessage(`    ${i + 1}. ${val}`);
+                    });
+                    logMessage(`    ... (${flatValues.length - 15} more items) ...`);
+                    flatValues.slice(-5).forEach((val, i) => {
+                        logMessage(`    ${flatValues.length - 5 + i + 1}. ${val}`);
+                    });
+                }
+            }
+        });
+    }
+}
+This function parses the result.json file and displays the execution status, any issues/errors, and captured output values from your Dynamo script in a readable format.
+
+📱 Step 8: Open Download & Re-enable Buttons
+        if (data.downloadUrl) {
+            logMessage(`<a href="${data.downloadUrl}" target="_blank" download="${data.fileName}">Click here to download ${data.fileName}</a>`);
+            window.open(data.downloadUrl, '_blank');
+        }
+    } finally {
+        enableAllButtons(false);
+    }
+The browser displays a download link, automatically opens the download in a new tab, and makes all buttons clickable again.
+
+🎯 What This Accomplishes:
+- Generates a secure download URL for the result.json file
+- Downloads the execution report from your Dynamo workitem
+- Parses and displays the results in a readable format
+- Shows execution status, issues, and captured output values
+- Provides detailed information about what your Dynamo script did
+
+📋 Summary for Non-Coders:
+1. User presses "Download Result Report (JSON)" button (enabled after successful workitem)
+2. All buttons become gray and output log clears
+3. Browser requests download URL from server
+4. Server gets signed download URL from Autodesk cloud storage
+5. Browser receives download URL and fetches the JSON file content
+6. Browser parses and displays Dynamo execution results in readable format
+7. Browser shows download link and auto-opens download in new tab
+8. All buttons become clickable again
+
+The result.json file contains detailed information about your Dynamo script execution, including any issues that occurred and the values captured from output nodes in your script. This is essential for understanding what your automation accomplished and troubleshooting any problems. 
