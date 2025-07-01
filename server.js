@@ -63,8 +63,10 @@ function initializeServer(io) {
     app.post('/api/aps/upload/single', upload.single('file'), require('./unified-upload-handler.js'));
     app.post('/api/aps/upload/revit', upload.single('rvtFile'), uploadRevitFileHandler);
     app.post('/api/aps/upload/dynamo', upload.single('dynFile'), uploadDynamoFileHandler);
-    app.post('/api/aps/convert/dyn-to-json', convertDynamoToJSONHandler);
+    app.post('/api/aps/convert/dyn-to-json', upload.single('dynFile'), convertDynamoToJSONHandler);
+    app.post('/api/aps/upload/dyn-to-json-preview', upload.single('dynFile'), convertDynamoToJSONHandler);
     app.post('/api/aps/upload/json', uploadJSONFileHandler);
+    app.post('/api/aps/upload/json-content', require('./json-content-upload-handler.js'));
     app.post('/api/aps/upload/python', upload.single('pythonFile'), uploadPythonDependenciesHandler);
     app.post('/api/aps/upload/packages', upload.single('packagesFile'), uploadPackagesHandler);
     app.post('/api/aps/workitem', runWorkitemHandler);

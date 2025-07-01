@@ -6,87 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>APS - Design Automation for Dynamo</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        .header {
-            background: linear-gradient(135deg, #0085CA 0%, #005A8B 100%);
-            color: white;
-            padding: 20px 0;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-size: 2.2rem;
-            font-weight: 300;
-        }
-        
-        .step-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .step-box h5 {
-            color: #495057;
-            margin-bottom: 15px;
-            font-weight: 600;
-            border-bottom: 2px solid #0085CA;
-            padding-bottom: 8px;
-        }
-        
-        .card {
-            border: 1px solid #dee2e6;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-        
-        .card-body h6 {
-            color: #495057;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .log-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            height: 500px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            white-space: pre-wrap;
-            scroll-behavior: smooth;
-            overflow-anchor: none;
-        }
-        
-        .btn-danger {
-            background-color: #dc3545;
-            border-color: #dc3545;
-        }
-        
-        .btn-danger:hover {
-            background-color: #c82333;
-            border-color: #bd2130;
-        }
-    </style>
+
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body>
     <div class="container-fluid">
         <div class="header">
-            <img src="https://cdn.autodesk.io/logo/black/stacked.png" alt="Autodesk Platform Services" height="50" style="filter: brightness(0) invert(1);">
+            <img src="https://cdn.autodesk.io/logo/black/stacked.png" alt="Autodesk Platform Services" height="50">
             <h1>Design Automation for Dynamo</h1>
-            <p class="mb-0" style="opacity: 0.9;">Autodesk Platform Services</p>
         </div>
 
         <div class="row">
@@ -540,6 +468,55 @@
             }
         }
 
+        // Function specifically for JSON conversion that shows the JSON content
+        async function makeApiCallWithConversion(endpoint, method = 'GET', formData = null) {
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
+            
+            const serverUrl = getServerUrl();
+            
+            try {
+                appendToLog(`Making ${method} request to ${endpoint}...`);
+                
+                const options = {
+                    method: method,
+                    body: formData
+                };
+                
+                const response = await fetch(`${serverUrl}${endpoint}`, options);
+                const data = await response.json();
+                
+                if (response.ok && data.jsonContent) {
+                    // Show JSON content in the textarea
+                    const jsonTextarea = document.getElementById('jsonContent');
+                    const uploadJsonBtn = document.getElementById('btnUploadJson');
+                    
+                    if (jsonTextarea) {
+                        jsonTextarea.value = data.jsonContent;
+                        appendToLog('✅ JSON content generated and displayed in the text area');
+                    }
+                    
+                    if (uploadJsonBtn) {
+                        uploadJsonBtn.disabled = false;
+                        appendToLog('✅ Upload JSON button enabled - you can now upload the JSON');
+                    }
+                } else {
+                    const errorMsg = data.error || 'Unknown error occurred';
+                    appendToLog(`❌ ${errorMsg}`);
+                    if (data.details) {
+                        appendToLog(`   Details: ${data.details}`);
+                    }
+                }
+                
+                return data;
+            } catch (error) {
+                appendToLog(`❌ Network error: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
         // Event listeners for all buttons - Updated to match reference API paths
         document.getElementById('btnClearDA').addEventListener('click', () => makeApiCall('/api/aps/account', 'DELETE'));
         document.getElementById('btnClearBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'DELETE'));
@@ -548,8 +525,56 @@
         document.getElementById('btnSetNickname').addEventListener('click', () => makeApiCall('/api/aps/nickname', 'POST'));
         document.getElementById('btnCreateActivity').addEventListener('click', () => makeApiCall('/api/aps/activity', 'POST'));
         document.getElementById('btnCreateBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'POST'));
-        document.getElementById('btnConvertJson').addEventListener('click', () => makeApiCall('/api/aps/convert/dyn-to-json', 'POST'));
-        document.getElementById('btnUploadJson').addEventListener('click', () => makeApiCall('/api/aps/upload/json', 'POST'));
+        document.getElementById('btnConvertJson').addEventListener('click', () => {
+            const fileInput = document.getElementById('dynFile');
+            if (!fileInput.files[0]) {
+                appendToLog('❌ Please select a Dynamo (.dyn) file first');
+                return;
+            }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('dynFile', fileInput.files[0]);
+            formData.append('socketId', socketId);
+            formData.append('showContent', 'true');
+            makeApiCallWithConversion('/api/aps/upload/dyn-to-json-preview', 'POST', formData);
+        });
+        document.getElementById('btnUploadJson').addEventListener('click', () => {
+            const jsonTextarea = document.getElementById('jsonContent');
+            if (!jsonTextarea.value.trim()) {
+                appendToLog('❌ No JSON content to upload. Please convert a Dynamo file first.');
+                return;
+            }
+            if (!socketId) {
+                appendToLog('❌ Not connected to server. Please refresh the page.');
+                return;
+            }
+            
+            const jsonContent = jsonTextarea.value.trim();
+            const requestBody = {
+                jsonContent: jsonContent,
+                socketId: socketId
+            };
+            
+            fetch('/api/aps/upload/json-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    appendToLog(`✅ ${data.message}`);
+                } else if (data.error) {
+                    appendToLog(`❌ ${data.error}`);
+                }
+            })
+            .catch(error => {
+                appendToLog(`❌ Network error: ${error.message}`);
+            });
+        });
         document.getElementById('btnRunWorkitem').addEventListener('click', () => {
             if (!socketId) {
                 appendToLog('❌ Not connected to server. Please refresh the page.');

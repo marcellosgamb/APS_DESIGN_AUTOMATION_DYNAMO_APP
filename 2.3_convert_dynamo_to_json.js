@@ -58,6 +58,9 @@ async function createTokenHeader() {
 const convertDynamoToJSONHandler = async (req, res) => {
     console.log('Starting operation: Convert Dynamo to JSON');
     
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     try {
         // Check if file was uploaded
         if (!req.file) {
@@ -72,8 +75,16 @@ const convertDynamoToJSONHandler = async (req, res) => {
         
         console.log(`File received: ${req.file.originalname} (${req.file.size} bytes)`);
         
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: '--- Step: CONVERT DYNAMO TO JSON ---' });
+            io.to(socketId).emit('status', { message: `Reading Dynamo file: ${req.file.originalname}` });
+        }
+        
         // Step 1: Read the uploaded file
         console.log('Step 1: Reading uploaded Dynamo file');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Reading and parsing Dynamo file...' });
+        }
         const dynContent = fs.readFileSync(req.file.path, 'utf8');
         
         // Step 2: Parse Dynamo file as JSON
@@ -106,6 +117,9 @@ const convertDynamoToJSONHandler = async (req, res) => {
         
         // Step 4: Create the run.json structure expected by Dynamo Player (matching reference)
         console.log('Step 4: Creating run.json structure');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Converting to run.json format...' });
+        }
         const runJson = {
             "target": {
                 "type": "JsonGraphTarget",
@@ -115,6 +129,11 @@ const convertDynamoToJSONHandler = async (req, res) => {
         };
         
         const jsonContent = JSON.stringify(runJson, null, 2);
+        
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Dynamo file converted to JSON format successfully.' });
+            io.to(socketId).emit('status', { message: 'JSON content is ready for upload.' });
+        }
         
         // Step 5: Clean up temporary file
         console.log('Step 5: Cleaning up temporary file');
@@ -146,9 +165,17 @@ const convertDynamoToJSONHandler = async (req, res) => {
     } catch (error) {
         console.log('Operation failed:', error.message);
         
+        const { socketId } = req.body;
+        const io = req.app.get('io');
+        
         // Clean up temporary file if it exists
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
+        }
+        
+        const message = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: `--- ERROR ---<br/>${message}` });
         }
         
         res.status(500).json({
