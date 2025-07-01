@@ -502,6 +502,64 @@
             }
         }
 
+        // Function to display Dynamo execution results (from reference implementation)
+        function displayDynamoOutputs(resultData) {
+            appendToLog(`<br/>--- DYNAMO EXECUTION RESULTS ---`);
+            
+            if (!resultData || !resultData.info) {
+                appendToLog('⚠️ No execution info found in result.json');
+                return;
+            }
+            
+            const info = resultData.info;
+            
+            // Display execution status
+            appendToLog(`<strong>📊 Status:</strong> ${info.status || 'Unknown'}`);
+            
+            // Display issues if any
+            if (info.issues && info.issues.length > 0) {
+                appendToLog(`<strong>⚠️ Issues:</strong>`);
+                info.issues.forEach((issue, index) => {
+                    appendToLog(`  ${index + 1}. ${issue}`);
+                });
+            } else {
+                appendToLog(`<strong>✅ Issues:</strong> None`);
+            }
+            
+            // Display outputs
+            if (info.outputs && info.outputs.length > 0) {
+                appendToLog(`<br/><strong>📈 Captured Outputs:</strong>`);
+                info.outputs.forEach((output, index) => {
+                    appendToLog(`<br/><strong>🔗 Output ${index + 1}: ${output.name}</strong>`);
+                    appendToLog(`  📝 Type: ${output.type || 'Unknown'}`);
+                    
+                    if (output.value && Array.isArray(output.value)) {
+                        const flatValues = output.value.flat();
+                        appendToLog(`  📊 Values: ${flatValues.length} items`);
+                        
+                        // Show first few values as preview
+                        if (flatValues.length > 0) {
+                            const preview = flatValues.slice(0, 5);
+                            appendToLog(`  🔍 Preview: ${preview.join(', ')}${flatValues.length > 5 ? '...' : ''}`);
+                        }
+                    } else if (output.value !== null && output.value !== undefined) {
+                        appendToLog(`  📝 Value: ${output.value}`);
+                    } else {
+                        appendToLog(`  📝 Value: (null/undefined)`);
+                    }
+                });
+            } else {
+                appendToLog(`<br/><strong>📈 Captured Outputs:</strong> None`);
+            }
+            
+            // Display timing information if available
+            if (info.executionTime) {
+                appendToLog(`<br/><strong>⏱️ Execution Time:</strong> ${info.executionTime}ms`);
+            }
+            
+            appendToLog(`<br/>--- END DYNAMO RESULTS ---<br/>`);
+        }
+
         // Event listeners for all buttons - Updated to match reference API paths
         document.getElementById('btnClearDA').addEventListener('click', () => makeApiCall('/api/aps/account', 'DELETE'));
         document.getElementById('btnClearBucket').addEventListener('click', () => makeApiCall('/api/aps/bucket', 'DELETE'));
@@ -583,27 +641,56 @@
         document.getElementById('btnDownloadJson').addEventListener('click', () => {
             const serverUrl = getServerUrl();
             
+            // Clear log and show what we're doing
+            appendToLog('🔄 Generating download URL for result.json...');
+            
             // Get the signed download URL from our API
             fetch(`${serverUrl}/api/aps/download/result-json`)
                 .then(response => response.json())
                 .then(data => {
+                    appendToLog(`--- RESPONSE (Status: 200) ---`);
+                    appendToLog(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+                    
                     if (data.downloadUrl) {
-                        // Create a download link and trigger it
-                        const downloadUrl = data.downloadUrl;
-                        const fileName = data.fileName || 'result.json';
+                        // Show the actual URL in the log
+                        appendToLog(`<strong>📥 Download URL Generated:</strong>`);
+                        appendToLog(`<a href="${data.downloadUrl}" target="_blank" download="${data.fileName}">🔗 ${data.downloadUrl}</a>`);
                         
-                        // Create temporary link element
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.download = fileName;
-                        link.style.display = 'none';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                        // For result.json, also fetch and display the Dynamo outputs
+                        appendToLog(`<br/>🔍 Fetching JSON content to display Dynamo results...`);
                         
-                        appendToLog(`✅ ${fileName} download started`);
+                        fetch(data.downloadUrl)
+                            .then(resultResponse => resultResponse.json())
+                            .then(resultData => {
+                                displayDynamoOutputs(resultData);
+                                
+                                // Now trigger the actual download
+                                const link = document.createElement('a');
+                                link.href = data.downloadUrl;
+                                link.download = data.fileName;
+                                link.style.display = 'none';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                
+                                appendToLog(`✅ ${data.fileName} download started!`);
+                            })
+                            .catch(err => {
+                                appendToLog(`⚠️ Could not parse result.json for display: ${err.message}`);
+                                
+                                // Still trigger download even if parsing failed
+                                const link = document.createElement('a');
+                                link.href = data.downloadUrl;
+                                link.download = data.fileName;
+                                link.style.display = 'none';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                
+                                appendToLog(`✅ ${data.fileName} download started!`);
+                            });
                     } else {
-                        appendToLog(`❌ ${data.error || 'Failed to get download URL'}`);
+                        appendToLog('❌ No download URL received');
                     }
                 })
                 .catch(error => {
@@ -613,27 +700,34 @@
         document.getElementById('btnDownloadRvt').addEventListener('click', () => {
             const serverUrl = getServerUrl();
             
+            // Clear log and show what we're doing
+            appendToLog('🔄 Generating download URL for result.rvt...');
+            
             // Get the signed download URL from our API
             fetch(`${serverUrl}/api/aps/download/result-rvt`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success && data.details && data.details.download_url) {
-                        // Create a download link and trigger it
-                        const downloadUrl = data.details.download_url;
-                        const fileName = data.details.file_name || 'result.rvt';
+                    appendToLog(`--- RESPONSE (Status: 200) ---`);
+                    appendToLog(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+                    
+                    if (data.downloadUrl) {
+                        // Show the actual URL in the log
+                        appendToLog(`<strong>📥 Download URL Generated:</strong>`);
+                        appendToLog(`<a href="${data.downloadUrl}" target="_blank" download="${data.fileName}">🔗 ${data.downloadUrl}</a>`);
                         
-                        // Create temporary link element
+                        // Create temporary link element and trigger download
                         const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.download = fileName;
+                        link.href = data.downloadUrl;
+                        link.download = data.fileName;
                         link.style.display = 'none';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         
-                        appendToLog(`✅ ${fileName} download started`);
+                        appendToLog(`✅ ${data.fileName} download started!`);
+                        appendToLog(`<br/>🎯 <strong>This is your processed Revit file with Dynamo changes applied!</strong>`);
                     } else {
-                        appendToLog(`❌ ${data.error || 'Failed to get download URL'}`);
+                        appendToLog('❌ No download URL received');
                     }
                 })
                 .catch(error => {
