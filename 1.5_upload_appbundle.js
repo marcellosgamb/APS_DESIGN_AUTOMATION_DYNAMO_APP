@@ -61,6 +61,9 @@ async function createTokenHeader() {
 const uploadAppBundleHandler = async (req, res) => {
     console.log('Starting operation: Upload AppBundle');
     
+    const { socketId } = req.body;
+    const io = req.app.get('io');
+    
     try {
         // Check if file was uploaded
         if (!req.file) {
@@ -75,12 +78,23 @@ const uploadAppBundleHandler = async (req, res) => {
         
         console.log(`File received: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
         
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: '--- Step: CREATE APPBUNDLE ---' });
+            io.to(socketId).emit('status', { message: `File received: ${req.file.originalname}` });
+        }
+        
         // Step 1: Get authentication token header
         console.log('Step 1: Getting authentication token');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Getting authentication token...' });
+        }
         const tokenHeader = await createTokenHeader();
         
         // Step 2: Create AppBundle name (using environment constants)
         console.log(`Step 2: Creating AppBundle: ${APS_NICKNAME}.${APS_BUNDLE_APP_NAME}+default`);
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: `Creating AppBundle: ${APS_NICKNAME}.${APS_BUNDLE_APP_NAME}+default` });
+        }
         
         // Step 3: Create AppBundle definition
         const appBundleDefinition = {
@@ -90,6 +104,9 @@ const uploadAppBundleHandler = async (req, res) => {
         };
         
         console.log('Step 3: Creating AppBundle resource (with upload parameters)');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Creating AppBundle resource...' });
+        }
         const createResponse = await axios.post(
             'https://developer.api.autodesk.com/da/us-east/v3/appbundles',
             appBundleDefinition,
@@ -97,11 +114,17 @@ const uploadAppBundleHandler = async (req, res) => {
         );
         
         console.log('Step 4: Extracting upload parameters from AppBundle creation response');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: `AppBundle created (version ${createResponse.data.version}). Uploading content...` });
+        }
         const uploadUrl = createResponse.data.uploadParameters.endpointURL;
         const formData = createResponse.data.uploadParameters.formData;
         
         // Step 5: Upload the ZIP file
         console.log('Step 5: Uploading ZIP to APS');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'Uploading ZIP file to APS...' });
+        }
         const uploadFormData = new FormData();
         
         // Add all the form data parameters first
@@ -118,6 +141,9 @@ const uploadAppBundleHandler = async (req, res) => {
         
         // Step 6: Create alias for the AppBundle
         console.log('Step 6: Creating alias for AppBundle');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: `Creating alias 'default' for version ${createResponse.data.version}...` });
+        }
         try {
             const aliasData = {
                 id: "default",
@@ -129,15 +155,24 @@ const uploadAppBundleHandler = async (req, res) => {
                 aliasData,
                 { headers: tokenHeader }
             );
+            if (socketId && io) {
+                io.to(socketId).emit('status', { message: `AppBundle alias 'default' created.` });
+            }
         } catch (aliasError) {
             // If alias already exists, update it
             if (aliasError.response && aliasError.response.status === 409) {
                 console.log('Alias exists, updating...');
+                if (socketId && io) {
+                    io.to(socketId).emit('status', { message: `Alias exists, updating to version ${createResponse.data.version}...` });
+                }
                 await axios.patch(
                     `https://developer.api.autodesk.com/da/us-east/v3/appbundles/${APS_BUNDLE_APP_NAME}/aliases/default`,
                     { version: createResponse.data.version },
                     { headers: tokenHeader }
                 );
+                if (socketId && io) {
+                    io.to(socketId).emit('status', { message: `AppBundle alias 'default' updated.` });
+                }
             } else {
                 throw aliasError;
             }
@@ -148,6 +183,9 @@ const uploadAppBundleHandler = async (req, res) => {
         fs.unlinkSync(req.file.path);
         
         console.log('Operation completed successfully');
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: 'AppBundle setup complete.' });
+        }
         
         // Step 8: Send success response
         res.status(200).json({ 
@@ -167,9 +205,17 @@ const uploadAppBundleHandler = async (req, res) => {
     } catch (error) {
         console.log('Operation failed:', error.message);
         
+        const { socketId } = req.body;
+        const io = req.app.get('io');
+        
         // Clean up temporary file if it exists
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
+        }
+        
+        const message = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+        if (socketId && io) {
+            io.to(socketId).emit('status', { message: `--- ERROR ---<br/>${message}` });
         }
         
         // Handle specific AppBundle creation errors
