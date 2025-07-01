@@ -504,7 +504,7 @@
 
         // Function to display Dynamo execution results (from reference implementation)
         function displayDynamoOutputs(resultData) {
-            appendToLog(`<br/>--- DYNAMO EXECUTION RESULTS ---`);
+            appendToLog(`<br/>--- 📊 DYNAMO EXECUTION RESULTS ---`);
             
             if (!resultData || !resultData.info) {
                 appendToLog('⚠️ No execution info found in result.json');
@@ -513,51 +513,66 @@
             
             const info = resultData.info;
             
-            // Display execution status
-            appendToLog(`<strong>📊 Status:</strong> ${info.status || 'Unknown'}`);
+            // Display execution status with better formatting
+            const status = info.status || 'Unknown';
+            const statusIcon = status === 'Succeeded' ? '✅' : status === 'Failed' ? '❌' : '⚠️';
+            appendToLog(`<strong>${statusIcon} Status:</strong> <span style="color: ${status === 'Succeeded' ? 'green' : status === 'Failed' ? 'red' : 'orange'};">${status}</span>`);
             
-            // Display issues if any
+            // Display issues if any with better formatting
             if (info.issues && info.issues.length > 0) {
-                appendToLog(`<strong>⚠️ Issues:</strong>`);
+                appendToLog(`<br/><strong>⚠️ Issues Found (${info.issues.length}):</strong>`);
                 info.issues.forEach((issue, index) => {
-                    appendToLog(`  ${index + 1}. ${issue}`);
+                    appendToLog(`   📋 ${index + 1}. ${issue}`);
                 });
             } else {
-                appendToLog(`<strong>✅ Issues:</strong> None`);
+                appendToLog(`<br/><strong>✅ Issues:</strong> <span style="color: green;">None - Clean execution!</span>`);
             }
             
-            // Display outputs
+            // Display outputs with much better formatting
             if (info.outputs && info.outputs.length > 0) {
-                appendToLog(`<br/><strong>📈 Captured Outputs:</strong>`);
+                appendToLog(`<br/><strong>📈 Dynamo Node Outputs (${info.outputs.length}):</strong>`);
                 info.outputs.forEach((output, index) => {
-                    appendToLog(`<br/><strong>🔗 Output ${index + 1}: ${output.name}</strong>`);
-                    appendToLog(`  📝 Type: ${output.type || 'Unknown'}`);
+                    appendToLog(`<br/>   <strong>🔗 ${index + 1}. "${output.name}"</strong>`);
+                    appendToLog(`      📝 Type: <em>${output.type || 'Unknown'}</em>`);
                     
                     if (output.value && Array.isArray(output.value)) {
                         const flatValues = output.value.flat();
-                        appendToLog(`  📊 Values: ${flatValues.length} items`);
+                        appendToLog(`      📊 Count: <strong>${flatValues.length}</strong> items`);
                         
-                        // Show first few values as preview
+                        // Show values in a more readable format
                         if (flatValues.length > 0) {
-                            const preview = flatValues.slice(0, 5);
-                            appendToLog(`  🔍 Preview: ${preview.join(', ')}${flatValues.length > 5 ? '...' : ''}`);
+                            if (flatValues.length <= 10) {
+                                // Show all values if 10 or fewer
+                                appendToLog(`      💾 Values: <code>[${flatValues.join(', ')}]</code>`);
+                            } else {
+                                // Show first 5 and last 2 with count in between
+                                const firstFew = flatValues.slice(0, 5);
+                                const lastFew = flatValues.slice(-2);
+                                appendToLog(`      💾 Values: <code>[${firstFew.join(', ')}, ... (${flatValues.length - 7} more) ..., ${lastFew.join(', ')}]</code>`);
+                            }
                         }
                     } else if (output.value !== null && output.value !== undefined) {
-                        appendToLog(`  📝 Value: ${output.value}`);
+                        const valueStr = typeof output.value === 'object' ? JSON.stringify(output.value, null, 2) : output.value;
+                        appendToLog(`      💾 Value: <code>${valueStr}</code>`);
                     } else {
-                        appendToLog(`  📝 Value: (null/undefined)`);
+                        appendToLog(`      💾 Value: <em style="color: gray;">(null/undefined)</em>`);
                     }
                 });
             } else {
-                appendToLog(`<br/><strong>📈 Captured Outputs:</strong> None`);
+                appendToLog(`<br/><strong>📈 Dynamo Node Outputs:</strong> <em style="color: gray;">None captured</em>`);
             }
             
             // Display timing information if available
             if (info.executionTime) {
-                appendToLog(`<br/><strong>⏱️ Execution Time:</strong> ${info.executionTime}ms`);
+                appendToLog(`<br/><strong>⏱️ Execution Time:</strong> <span style="color: blue;">${info.executionTime}ms</span>`);
             }
             
-            appendToLog(`<br/>--- END DYNAMO RESULTS ---<br/>`);
+            // Show total summary
+            const outputCount = (info.outputs && info.outputs.length) || 0;
+            const issueCount = (info.issues && info.issues.length) || 0;
+            appendToLog(`<br/><strong>📋 Summary:</strong> ${outputCount} outputs, ${issueCount} issues, Status: ${status}`);
+            
+            appendToLog(`<hr style="margin: 10px 0; border: 1px solid #ddd;">`);
         }
 
         // Event listeners for all buttons - Updated to match reference API paths
