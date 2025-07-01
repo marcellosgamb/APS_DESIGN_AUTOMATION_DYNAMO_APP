@@ -488,7 +488,7 @@
 
         // Function to display Dynamo execution results (clean Dynamo-style formatting)
         function displayDynamoOutputs(resultData) {
-            appendToLog(`<br/><div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0;">
+            appendToLog(`<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0;">
                 <h4 style="color: #495057; margin: 0 0 15px 0; font-size: 16px; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
                     🔍 Dynamo Execution Results
                 </h4>`);
@@ -691,16 +691,12 @@
             fetch(`${serverUrl}/api/aps/download/result-json`)
                 .then(response => response.json())
                 .then(data => {
-                    appendToLog(`--- RESPONSE (Status: 200) ---`);
-                    appendToLog(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
-                    
                     if (data.downloadUrl) {
-                        // Show the actual URL in the log
-                        appendToLog(`<strong>📥 Download URL Generated:</strong>`);
-                        appendToLog(`<a href="${data.downloadUrl}" target="_blank" download="${data.fileName}">🔗 ${data.downloadUrl}</a>`);
+                        // Show a clean download status
+                        appendToLog('✅ JSON download URL generated successfully');
                         
-                        // For result.json, also fetch and display the Dynamo outputs
-                        appendToLog(`<br/>🔍 Fetching JSON content to display Dynamo results...`);
+                        // For result.json, fetch and display the Dynamo outputs first
+                        appendToLog('🔍 Fetching JSON content to display Dynamo results...');
                         
                         fetch(data.downloadUrl)
                             .then(resultResponse => resultResponse.json())
