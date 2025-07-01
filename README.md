@@ -213,30 +213,6 @@ Unified Modern Architecture:
 - ✅ **File upload callback errors** - Fixed with fs-extra dependency
 - ✅ **JSON upload failures** - Fixed with unified upload endpoint
 
-### Common Issues
-
-**❌ Activity not found (e.g., `my_nicknamew.my_activity_1new+default`)**
-- **Cause:** Environment variables not loading correctly
-- **Solution:** Ensure `.env` file exists and values are unique
-
-**❌ "failedInstructions" Error**
-- **Cause:** CPython3 nodes in Dynamo script
-- **Solution:** Change Python nodes to IronPython2
-
-**❌ "Bucket already exists" Error**  
-- **Cause:** Bucket name not globally unique
-- **Solution:** Change `APS_BUCKET_NAME` in `.env` file
-
-**❌ Source code not displaying**
-- **Cause:** File not found or server not running
-- **Solution:** Ensure server is running and file exists
-
-### Debug Features
-- **Real-time logging** with timestamps via Socket.IO
-- **Detailed error messages** with operation context
-- **Environment variable debugging** in workitem execution
-- **Network request/response logging**
-
 ## 📁 **File Structure**
 
 ```
@@ -292,31 +268,6 @@ dynamo-design-automation/
 | `APS_BUNDLE_APP_NAME` | ✅ | Unique AppBundle name | `my_app_012` |  
 | `APS_ACTIVITY_NAME` | ✅ | Unique Activity name | `my_activity_345` |
 | `APS_BUCKET_REGION` | ✅ | Bucket region | `US` |
-
-## 🎉 **Success Examples**
-
-### Typical Use Cases
-- **Automate Revit model updates** - Update families, parameters, views
-- **Generate reports** - Extract model data, create schedules
-- **Quality checks** - Validate model standards, check compliance  
-- **Batch processing** - Process multiple models with same script
-- **Custom workflows** - Implement company-specific automation
-
-### Performance
-- **Setup time:** ~2-3 minutes (one-time)
-- **File upload:** ~30-60 seconds (with real-time progress)
-- **Execution time:** 1-5 minutes (with Socket.IO updates)
-- **Download time:** ~10-30 seconds (fixed download system)
-
-## 🔄 **Recent Improvements**
-
-### v1.0 Production Release
-- ✅ **Fixed JSON uploads** - Now uses signed URLs instead of deprecated endpoints
-- ✅ **Fixed file downloads** - Proper signed download URLs for all result files
-- ✅ **Added Socket.IO** - Real-time progress updates for all operations
-- ✅ **Unified upload system** - Single endpoint handles all file types securely
-- ✅ **Enhanced error handling** - Better error messages and debugging
-- ✅ **Modern file handling** - fs-extra dependency for robust file operations
 
 ## 🤝 **Contributing**
 
