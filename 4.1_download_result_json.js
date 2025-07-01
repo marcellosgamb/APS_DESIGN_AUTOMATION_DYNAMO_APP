@@ -79,40 +79,18 @@ const downloadResultJSONHandler = async (req, res) => {
         
         // Step 5: Send response with download URL and parsed content
         res.status(200).json({ 
-            success: true,
-            operation: 'Download Result JSON',
             message: 'Download URL generated successfully',
-            details: {
-                file_name: fileName,
-                download_url: downloadUrl,
-                expires_in_minutes: 60,
-                bucket_name: APS_BUCKET_NAME,
-                content_preview: jsonContent,
-                file_size: JSON.stringify(jsonContent).length
-            },
-            timestamp: new Date().toISOString()
+            downloadUrl: downloadUrl,
+            fileName: fileName
         });
         
     } catch (error) {
         console.log('Operation failed:', error.message);
         
-        if (error.response && error.response.status === 404) {
-            res.status(404).json({
-                success: false,
-                operation: 'Download Result JSON',
-                error: 'Result file not found',
-                details: 'The result.json file does not exist. Please run a workitem first.',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                operation: 'Download Result JSON',
-                error: 'Failed to generate download URL',
-                details: error.response?.data || error.message,
-                timestamp: new Date().toISOString()
-            });
-        }
+        res.status(error.response?.status || 500).json({
+            error: `Failed to generate download URL for ${fileName}`,
+            details: error.response?.data || error.message
+        });
     }
 };
 
