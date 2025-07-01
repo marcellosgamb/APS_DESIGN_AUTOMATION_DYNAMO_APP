@@ -326,41 +326,11 @@
             return window.location.origin;
         }
 
-        // Enhanced function to view source code in new window
+        // Function to view source code (opens in new window)
         function viewSourceCode(filename) {
             const serverUrl = getServerUrl();
-            const codeWindow = window.open('', '_blank', 'width=1000,height=700,scrollbars=yes,resizable=yes');
-            
-            codeWindow.document.write(`
-                <html>
-                <head>
-                    <title>Source Code: ${filename}</title>
-                    <style>
-                        body { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; margin: 20px; background: #f8f9fa; }
-                        .header { background: #007bff; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                        .code-container { background: white; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px; white-space: pre-wrap; line-height: 1.4; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h2>📄 Source Code: ${filename}</h2>
-                        <p>Educational view of the complete implementation</p>
-                    </div>
-                    <div class="code-container">Loading...</div>
-                </body>
-                </html>
-            `);
-
-            fetch(`${serverUrl}/view-source/${filename}`)
-                .then(response => response.text())
-                .then(code => {
-                    const codeContainer = codeWindow.document.querySelector('.code-container');
-                    codeContainer.textContent = code;
-                })
-                .catch(error => {
-                    const codeContainer = codeWindow.document.querySelector('.code-container');
-                    codeContainer.textContent = `Error loading source code: ${error.message}`;
-                });
+            const sourceUrl = `${serverUrl}/view-source/${filename}`;
+            window.open(sourceUrl, '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
         }
 
         // Utility function to append messages to the log

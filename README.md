@@ -35,11 +35,17 @@ Production Architecture:
 ├── server.js              # Main unified server (Socket.IO + all handlers)
 ├── start.js               # Server initialization with Socket.IO
 ├── index.html             # Modern interface with real-time updates
-├── 0.1_clear_da_resources.js    # ⟵ Complete standalone module
-├── 0.2_clear_oss_bucket.js      # ⟵ Complete standalone module
-├── 1.1_get_access_token.js      # ⟵ Complete standalone module
-├── 1.2_get_nickname.js          # ⟵ Complete standalone module
-├── ... (all 17 x.x.js files)   # ⟵ Each is complete & educational
+├── Routes/                # Organized route handlers
+│   ├── 0.1_clear_da_resources.js    # ⟵ Complete standalone module
+│   ├── 0.2_clear_oss_bucket.js      # ⟵ Complete standalone module
+│   ├── 1.1_get_access_token.js      # ⟵ Complete standalone module
+│   ├── 1.2_get_nickname.js          # ⟵ Complete standalone module
+│   └── ... (all 17 x.x.js files)   # ⟵ Each is complete & educational
+├── Files_to_upload/       # Sample files for testing
+│   ├── run.rvt           # Sample Revit file
+│   ├── run.dyn           # Sample Dynamo script
+│   ├── pythonDependencies.zip  # Python libraries
+│   └── DynamoRevitDA.zip # Dynamo engine AppBundle
 ├── .env                   # Environment configuration
 └── package.json          # Dependencies (includes fs-extra for file handling)
 ```
@@ -116,14 +122,14 @@ Start fresh by removing any existing resources:
 ### 🏗️ **Step 1: Setup (One-time)**
 1. **Get Access Token** - Authenticate with APS
 2. **Get/Set Nickname** - Register your developer identity
-3. **Upload AppBundle** - Upload `DynamoRevitDA.zip` (contains Dynamo engine)
+3. **Upload AppBundle** - Upload `Files_to_upload/DynamoRevitDA.zip` (contains Dynamo engine)
 4. **Create Activity** - Define the cloud processing workflow
 5. **Create OSS Bucket** - Set up cloud file storage
 
 ### 📁 **Step 2: Upload Files**
-1. **Python Dependencies** - Upload `pythonDependencies.zip` via unified endpoint
-2. **Revit File** - Upload your `.rvt` file with signed URLs
-3. **Dynamo Script** - Upload your `.dyn` file with validation
+1. **Python Dependencies** - Upload `Files_to_upload/pythonDependencies.zip` via unified endpoint
+2. **Revit File** - Upload your `.rvt` file (sample: `Files_to_upload/run.rvt`) with signed URLs
+3. **Dynamo Script** - Upload your `.dyn` file (sample: `Files_to_upload/run.dyn`) with validation
 4. **Convert to JSON** - Convert Dynamo script to required format
 5. **Upload JSON** - Upload converted script using signed URLs
 6. **Packages** (Optional) - Upload custom Dynamo packages if needed
@@ -217,24 +223,25 @@ Unified Modern Architecture:
 
 ```
 dynamo-design-automation/
-├── 📄 Core Application Files
-│   ├── 0.1_clear_da_resources.js     # Clear Design Automation resources
-│   ├── 0.2_clear_oss_bucket.js       # Clear OSS bucket
-│   ├── 1.1_get_access_token.js       # APS authentication
-│   ├── 1.2_get_nickname.js           # Get DA nickname
-│   ├── 1.3_set_nickname.js           # Set DA nickname  
-│   ├── 1.5_upload_appbundle.js       # Upload Dynamo engine
-│   ├── 1.6_create_activity.js        # Create DA activity
-│   ├── 1.7_create_oss_bucket.js      # Create storage bucket
-│   ├── 2.1_upload_revit_file.js      # Upload RVT file (signed URLs)
-│   ├── 2.2_upload_dynamo_file.js     # Upload DYN file (signed URLs)
-│   ├── 2.3_convert_dynamo_to_json.js # Convert DYN to JSON
-│   ├── 2.4_upload_json_file.js       # Upload JSON (signed URLs)
-│   ├── 2.5_upload_python_dependencies.js # Upload Python deps
-│   ├── 2.6_upload_packages.js        # Upload custom packages
-│   ├── 3.1_run_workitem.js           # Execute with Socket.IO updates
-│   ├── 4.1_download_result_json.js   # Download JSON (fixed URLs)
-│   └── 4.2_download_result_rvt.js    # Download RVT (fixed URLs)
+├── 📄 Route Handlers (Organized)
+│   └── Routes/
+│       ├── 0.1_clear_da_resources.js     # Clear Design Automation resources
+│       ├── 0.2_clear_oss_bucket.js       # Clear OSS bucket
+│       ├── 1.1_get_access_token.js       # APS authentication
+│       ├── 1.2_get_nickname.js           # Get DA nickname
+│       ├── 1.3_set_nickname.js           # Set DA nickname  
+│       ├── 1.5_upload_appbundle.js       # Upload Dynamo engine
+│       ├── 1.6_create_activity.js        # Create DA activity
+│       ├── 1.7_create_oss_bucket.js      # Create storage bucket
+│       ├── 2.1_upload_revit_file.js      # Upload RVT file (signed URLs)
+│       ├── 2.2_upload_dynamo_file.js     # Upload DYN file (signed URLs)
+│       ├── 2.3_convert_dynamo_to_json.js # Convert DYN to JSON
+│       ├── 2.4_upload_json_file.js       # Upload JSON (signed URLs)
+│       ├── 2.5_upload_python_dependencies.js # Upload Python deps
+│       ├── 2.6_upload_packages.js        # Upload custom packages
+│       ├── 3.1_run_workitem.js           # Execute with Socket.IO updates
+│       ├── 4.1_download_result_json.js   # Download JSON (fixed URLs)
+│       └── 4.2_download_result_rvt.js    # Download RVT (fixed URLs)
 ├── 🏗️ Architecture Files  
 │   ├── server.js                     # Unified server with Socket.IO
 │   ├── start.js                      # Server initialization
@@ -244,11 +251,12 @@ dynamo-design-automation/
 │   ├── .env                          # Environment variables (create this)
 │   ├── env.txt                       # Example environment file
 │   └── .gitignore                    # Git ignore rules
-├── 📦 Required Files
-│   ├── DynamoRevitDA.zip            # Dynamo engine for cloud
-│   ├── pythonDependencies.zip       # Python libraries
-│   ├── run.dyn                      # Example Dynamo script
-│   └── run.rvt                      # Example Revit file
+├── 📦 Sample Files (Ready to Use)
+│   └── Files_to_upload/
+│       ├── DynamoRevitDA.zip        # Dynamo engine for cloud
+│       ├── pythonDependencies.zip   # Python libraries
+│       ├── run.dyn                  # Example Dynamo script
+│       └── run.rvt                  # Example Revit file
 ├── 🎨 Frontend Assets
 │   └── css/
 │       └── styles.css               # Application styling
