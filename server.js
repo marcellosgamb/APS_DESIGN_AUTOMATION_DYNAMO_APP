@@ -59,6 +59,8 @@ function initializeServer(io) {
     app.post('/api/aps/appbundle', upload.single('appBundleFile'), uploadAppBundleHandler);
     app.post('/api/aps/activity', createActivityHandler);
     app.post('/api/aps/bucket', createOSSBucketHandler);
+    // Unified upload route that matches the reference implementation
+    app.post('/api/aps/upload/single', upload.single('file'), require('./unified-upload-handler.js'));
     app.post('/api/aps/upload/revit', upload.single('rvtFile'), uploadRevitFileHandler);
     app.post('/api/aps/upload/dynamo', upload.single('dynFile'), uploadDynamoFileHandler);
     app.post('/api/aps/convert/dyn-to-json', convertDynamoToJSONHandler);
