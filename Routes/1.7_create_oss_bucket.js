@@ -62,6 +62,23 @@ async function createTokenHeader() {
 }
 // END TOKEN MANAGEMENT SECTION
 
+// HELPER FUNCTION: Generate alternative bucket name if needed
+function generateAlternativeBucketName(baseName) {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    return `${baseName}_${timestamp}_${randomSuffix}`;
+}
+
+// HELPER FUNCTION: Test if we can access a bucket (list objects)
+async function canAccessBucket(tokenHeader, bucketName) {
+    try {
+        await axios.get(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects`, { headers: tokenHeader });
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 // MAIN ROUTE HANDLER - Export this for use in server.js
 const createOSSBucketHandler = async (req, res) => {
     console.log('Starting operation: Create OSS Bucket');
@@ -71,53 +88,94 @@ const createOSSBucketHandler = async (req, res) => {
         console.log('Step 1: Getting authentication token');
         const tokenHeader = await createTokenHeader();
         
-        // Step 2: Create bucket configuration
+        // Step 2: Check if we can access the existing bucket
+        console.log(`Step 2: Checking access to bucket: ${APS_BUCKET_NAME}`);
+        const canAccess = await canAccessBucket(tokenHeader, APS_BUCKET_NAME);
+        
+        if (canAccess) {
+            console.log('Bucket exists and is accessible');
+            res.status(200).json({
+                success: true,
+                operation: 'Create OSS Bucket',
+                message: 'OSS Bucket is ready',
+                details: `Bucket "${APS_BUCKET_NAME}" exists and is accessible with current credentials`,
+                educational_note: 'Bucket already exists and you have proper access rights',
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        
+        // Step 3: Try to create the bucket
         const bucketConfig = {
             bucketKey: APS_BUCKET_NAME,
             policyKey: "transient"
         };
         
-        console.log(`Step 2: Creating bucket: ${APS_BUCKET_NAME}`);
+        console.log(`Step 3: Creating bucket: ${APS_BUCKET_NAME}`);
         
-        // Step 3: Make API call to Autodesk
-        console.log('Step 3: Making API call to Autodesk');
-        const response = await axios.post('https://developer.api.autodesk.com/oss/v2/buckets', bucketConfig, { headers: tokenHeader });
-        
-        console.log('Operation completed successfully');
-        
-        // Step 4: Send success response back to browser
-        res.status(200).json({ 
-            success: true,
-            operation: 'Create OSS Bucket',
-            message: 'OSS Bucket created successfully',
-            details: response.data,
-            educational_note: 'This bucket stores your files (RVT, JSON, etc.) for Design Automation processing',
-            timestamp: new Date().toISOString()
-        });
+        try {
+            const response = await axios.post('https://developer.api.autodesk.com/oss/v2/buckets', bucketConfig, { headers: tokenHeader });
+            
+            console.log('Operation completed successfully');
+            
+            res.status(200).json({ 
+                success: true,
+                operation: 'Create OSS Bucket',
+                message: 'OSS Bucket created successfully',
+                details: response.data,
+                educational_note: 'This bucket stores your files (RVT, JSON, etc.) for Design Automation processing',
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (createError) {
+            // Handle bucket creation conflicts
+            if (createError.response && createError.response.status === 409) {
+                console.log('Bucket name already taken by another app');
+                
+                // Generate an alternative bucket name
+                const alternativeName = generateAlternativeBucketName(APS_BUCKET_NAME);
+                console.log(`Attempting to create alternative bucket: ${alternativeName}`);
+                
+                const alternativeConfig = {
+                    bucketKey: alternativeName,
+                    policyKey: "transient"
+                };
+                
+                try {
+                    const altResponse = await axios.post('https://developer.api.autodesk.com/oss/v2/buckets', alternativeConfig, { headers: tokenHeader });
+                    
+                    res.status(200).json({
+                        success: true,
+                        operation: 'Create OSS Bucket',
+                        message: 'Alternative OSS Bucket created successfully',
+                        details: altResponse.data,
+                        original_bucket_name: APS_BUCKET_NAME,
+                        new_bucket_name: alternativeName,
+                        educational_note: `Original bucket name "${APS_BUCKET_NAME}" was taken by another app. Created "${alternativeName}" instead.`,
+                        recommendation: `Update your .env file: APS_BUCKET_NAME="${alternativeName}"`,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                } catch (altError) {
+                    throw altError;
+                }
+                
+            } else {
+                throw createError;
+            }
+        }
         
     } catch (error) {
         console.log('Operation failed:', error.message);
         
-        // Check if bucket already exists
-        if (error.response && error.response.status === 409) {
-            res.status(200).json({
-                success: true,
-                operation: 'Create OSS Bucket',
-                message: 'OSS Bucket already exists',
-                details: `Bucket "${APS_BUCKET_NAME}" is already created and ready to use`,
-                educational_note: 'Error 409 (Conflict) means the bucket already exists - this is normal and safe',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            // Some other error occurred
-            res.status(500).json({
-                success: false,
-                operation: 'Create OSS Bucket',
-                error: 'Failed to create OSS Bucket',
-                details: error.response?.data || error.message,
-                timestamp: new Date().toISOString()
-            });
-        }
+        res.status(500).json({
+            success: false,
+            operation: 'Create OSS Bucket',
+            error: 'Failed to create OSS Bucket',
+            details: error.response?.data || error.message,
+            troubleshooting: 'If you changed client credentials, try using a different bucket name in your .env file',
+            timestamp: new Date().toISOString()
+        });
     }
 };
 

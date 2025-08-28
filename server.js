@@ -63,6 +63,7 @@ const upload = multer({ dest: 'uploads/' });
 // Import all route handlers from Routes folder
 const clearDAResourcesHandler = require('./Routes/0.1_clear_da_resources.js');
 const clearOSSBucketHandler = require('./Routes/0.2_clear_oss_bucket.js');
+const smartBucketCleanupHandler = require('./Routes/0.3_smart_bucket_cleanup.js');
 const getAccessTokenHandler = require('./Routes/1.1_get_access_token.js');
 const getNicknameHandler = require('./Routes/1.2_get_nickname.js');
 const setNicknameHandler = require('./Routes/1.3_set_nickname.js');
@@ -107,6 +108,7 @@ function initializeServer(io) {
     // Set up all the unified routes with API paths to match reference
     app.delete('/api/aps/account', clearDAResourcesHandler);
     app.delete('/api/aps/bucket', clearOSSBucketHandler);
+    app.post('/api/aps/bucket-cleanup', smartBucketCleanupHandler);
     app.post('/api/aps/token', getAccessTokenHandler);
     app.get('/api/aps/nickname', getNicknameHandler);
     app.post('/api/aps/nickname', setNicknameHandler);
@@ -270,6 +272,7 @@ function initializeServer(io) {
     // Keep legacy routes for backward compatibility
     app.delete('/clear-da-resources', clearDAResourcesHandler);
     app.delete('/clear-oss-bucket', clearOSSBucketHandler);
+    app.post('/smart-bucket-cleanup', smartBucketCleanupHandler);
     app.post('/get-access-token', getAccessTokenHandler);
     app.get('/get-nickname', getNicknameHandler);
     app.post('/set-nickname', setNicknameHandler);

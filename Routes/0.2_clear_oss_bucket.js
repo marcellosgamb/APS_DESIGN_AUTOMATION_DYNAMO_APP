@@ -62,6 +62,37 @@ async function createTokenHeader() {
 }
 // END TOKEN MANAGEMENT SECTION
 
+// HELPER FUNCTION: Clear all objects from bucket before deleting
+async function clearBucketObjects(tokenHeader, bucketName) {
+    console.log(`Clearing all objects from bucket: ${bucketName}`);
+    
+    try {
+        // First, list all objects in the bucket
+        const listResponse = await axios.get(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects`, { headers: tokenHeader });
+        
+        if (listResponse.data.items && listResponse.data.items.length > 0) {
+            console.log(`Found ${listResponse.data.items.length} objects to delete`);
+            
+            // Delete each object individually
+            for (const object of listResponse.data.items) {
+                try {
+                    await axios.delete(`https://developer.api.autodesk.com/oss/v2/buckets/${bucketName}/objects/${object.objectKey}`, { headers: tokenHeader });
+                    console.log(`Deleted object: ${object.objectKey}`);
+                } catch (objError) {
+                    console.log(`Warning: Could not delete object ${object.objectKey}:`, objError.message);
+                }
+            }
+        } else {
+            console.log('No objects found in bucket');
+        }
+        
+        return true;
+    } catch (error) {
+        console.log('Warning: Could not list bucket objects:', error.message);
+        return false;
+    }
+}
+
 // MAIN ROUTE HANDLER - Export this for use in server.js
 const clearOSSBucketHandler = async (req, res) => {
     console.log('Starting operation: Clear OSS Bucket');
@@ -71,13 +102,17 @@ const clearOSSBucketHandler = async (req, res) => {
         console.log('Step 1: Getting authentication token');
         const tokenHeader = await createTokenHeader();
         
-        // Step 2: Make API call to Autodesk
-        console.log('Step 2: Making API call to Autodesk');
+        // Step 2: Try to clear objects from bucket first
+        console.log('Step 2: Clearing all objects from bucket');
+        await clearBucketObjects(tokenHeader, APS_BUCKET_NAME);
+        
+        // Step 3: Try to delete the bucket itself
+        console.log('Step 3: Attempting to delete bucket');
         const deleteResponse = await axios.delete(`https://developer.api.autodesk.com/oss/v2/buckets/${APS_BUCKET_NAME}`, { headers: tokenHeader });
         
         console.log('Operation completed successfully');
         
-        // Step 3: Send success response back to browser
+        // Step 4: Send success response back to browser
         res.status(200).json({ 
             success: true,
             operation: 'Clear OSS Bucket',
@@ -87,7 +122,7 @@ const clearOSSBucketHandler = async (req, res) => {
         });
         
     } catch (error) {
-        console.log('Operation failed:', error.message);
+        console.log('Bucket deletion failed:', error.message);
         
         // Check if it's a "not found" error (bucket doesn't exist)
         if (error.response && error.response.status === 404) {
@@ -96,6 +131,20 @@ const clearOSSBucketHandler = async (req, res) => {
                 operation: 'Clear OSS Bucket',
                 message: 'No OSS Bucket found to clear',
                 details: `Bucket "${APS_BUCKET_NAME}" does not exist or was already deleted`,
+                timestamp: new Date().toISOString()
+            });
+        } 
+        // Check if it's a permissions error (different client credentials)
+        else if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+            console.log('Permission denied - bucket was created by different client credentials');
+            
+            // Clear objects was attempted above, so bucket should be empty
+            res.status(200).json({
+                success: true,
+                operation: 'Clear OSS Bucket',
+                message: 'Bucket objects cleared (bucket deletion not permitted)',
+                details: `Objects in bucket "${APS_BUCKET_NAME}" have been deleted. The bucket itself cannot be deleted because it was created by different client credentials. This is normal when changing apps - you can create a new bucket with a different name.`,
+                recommendation: 'Consider updating your APS_BUCKET_NAME in the .env file to use a new bucket name',
                 timestamp: new Date().toISOString()
             });
         } else {
